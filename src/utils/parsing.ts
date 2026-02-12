@@ -150,12 +150,24 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
             row['Kuupäev'] || row['kuupäev'] || row['Aeg'] || ''
           );
 
-          // Try multiple field names for Athlete (handle unmapped or case variations)
-          const athlete = sanitize(
-            row['Athlete'] || row['athlete'] || row['ATHLETE'] ||
-            row['Sportlane'] || row['sportlane'] || row['Nimi'] ||
-            row['Name'] || row['name'] || ''
+          // Handle athlete name - can be in 2 columns (FirstName + FamilyName) or 1 column (Athlete)
+          const firstName = sanitize(
+            row['FirstName'] || row['Eesnimi'] || row['eesnimi'] ||
+            row['First Name'] || row['first name'] || ''
           );
+          const familyName = sanitize(
+            row['FamilyName'] || row['Perekonnanimi'] || row['perekonnanimi'] ||
+            row['Family Name'] || row['family name'] || row['Last Name'] || row['last name'] || ''
+          );
+
+          // If both first and family name exist, combine them; otherwise try single column
+          const athlete = (firstName && familyName)
+            ? `${firstName} ${familyName}`.trim()
+            : sanitize(
+                row['Athlete'] || row['athlete'] || row['ATHLETE'] ||
+                row['Sportlane'] || row['sportlane'] || row['Nimi'] ||
+                row['Name'] || row['name'] || firstName || familyName || ''
+              );
 
           const clubRaw     = sanitize(row['Club'] || row['Klubi'] || row['klubi'] || '');
           const bowClass    = sanitize(row['Class'] || row['Bow Type'] || row['Vibu'] || '');

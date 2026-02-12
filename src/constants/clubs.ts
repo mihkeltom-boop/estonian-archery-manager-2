@@ -34,13 +34,30 @@ export const ESTONIAN_HEADERS: Record<string, string> = {
   'Aeg':           'Date',  // alternative: "time"
   'Päev':          'Date',  // alternative: "day"
 
-  // Athlete variations
+  // Athlete variations (full name in single column)
   'Sportlane':     'Athlete',
   'Sportlane ':    'Athlete',  // with trailing space
   'sportlane':     'Athlete',  // lowercase
   'Nimi':          'Athlete',  // alternative: "name"
   'Sportlase nimi':'Athlete',  // "athlete's name"
   'Laskur':        'Athlete',  // alternative: "shooter"
+
+  // First name variations (when name is split into 2 columns)
+  'Eesnimi':       'FirstName',
+  'eesnimi':       'FirstName',
+  'First Name':    'FirstName',
+  'first name':    'FirstName',
+  'Nimi1':         'FirstName',
+
+  // Family name variations (when name is split into 2 columns)
+  'Perekonnanimi': 'FamilyName',
+  'perekonnanimi': 'FamilyName',
+  'Perenimi':      'FamilyName',
+  'Family Name':   'FamilyName',
+  'family name':   'FamilyName',
+  'Last Name':     'FamilyName',
+  'last name':     'FamilyName',
+  'Nimi2':         'FamilyName',
 
   // Competition
   'Võistlus':      'Competition',
