@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Badge } from '../common';
-import ClubAutocomplete from '../common/ClubAutocomplete';
+import { Card, Button, Badge } from './index';
+import ClubAutocomplete from './ClubAutocomplete';
 import { getClubs, removeClub, addClub, subscribeToClubs } from '../../utils/clubStore';
 
 const ClubManager: React.FC = () => {

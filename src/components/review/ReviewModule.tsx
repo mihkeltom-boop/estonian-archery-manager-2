@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button, Card, Badge, ConfidenceBadge } from '../common';
 import ClubAutocomplete from '../common/ClubAutocomplete';
-import type { CompetitionRecord } from '../../types';
+import type { CompetitionRecord, BowType } from '../../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -259,7 +259,7 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
         return {
           ...r,
           ...(fixes['Club'] ? { Club: fixes['Club'] } : {}),
-          ...(fixes['Bow Type'] ? { 'Bow Type': fixes['Bow Type'] } : {}),
+          ...(fixes['Bow Type'] ? { 'Bow Type': fixes['Bow Type'] as BowType } : {}),
         };
       });
 
