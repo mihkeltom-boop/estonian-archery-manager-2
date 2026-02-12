@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ImportModule from './components/import/ImportModule';
 import ReviewModule from './components/review/ReviewModule';
 import DatabaseModule from './components/database/DatabaseModule';
+import LogsModule from './components/logs/LogsModule';
 import ClubManager from './components/common/ClubManager';
 import { Badge } from './components/common';
 import type { CompetitionRecord, Step } from './types';
@@ -18,6 +19,7 @@ const StepNav: React.FC<{
     { id: 'import',   label: 'Import',   num: '1' },
     { id: 'review',   label: 'Review',   num: '2', locked: !hasParsed },
     { id: 'database', label: 'Database', num: '3', locked: !hasReviewed },
+    { id: 'logs',     label: 'Logs',     num: '4', locked: !hasReviewed },
     { id: 'clubs',    label: 'Clubs',    num: '⚙' },
   ];
 
@@ -104,6 +106,7 @@ const App: React.FC = () => {
         {step === 'import'   && <ImportModule onParsed={handleParsed} />}
         {step === 'review'   && <ReviewModule records={parsed} onComplete={handleReviewed} />}
         {step === 'database' && <DatabaseModule records={reviewed} />}
+        {step === 'logs'     && <LogsModule records={reviewed} />}
         {step === 'clubs'    && (
           <div className="space-y-4 fade-in">
             <div>
