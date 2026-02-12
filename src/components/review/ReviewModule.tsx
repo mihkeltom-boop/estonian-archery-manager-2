@@ -94,20 +94,29 @@ const TicketCard: React.FC<TicketCardProps> = ({
 }) => {
   const [editedValue, setEditedValue] = useState(ticket.suggestedValue);
   const isBulk = ticket.recordIds.length > 1;
+  const approveButtonRef = React.useRef<HTMLButtonElement>(null);
+
+  // Auto-focus approve button when card appears
+  useEffect(() => {
+    approveButtonRef.current?.focus();
+  }, []);
 
   // Keyboard shortcuts for approve/reject
   useEffect(() => {
     if (decision) return; // Already decided
 
     const handler = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts when typing in input fields
-      if ((e.target as HTMLElement).matches('input, select, textarea')) return;
+      const target = e.target as HTMLElement;
+      const isTyping = target.matches('input, select, textarea');
 
+      // Enter always approves (even when typing in input)
       if (e.key === 'Enter') {
         e.preventDefault();
         onApprove(editedValue);
       }
-      if (e.key === 'Delete') {
+
+      // Delete only rejects when NOT typing (to allow deleting text in input)
+      if (e.key === 'Delete' && !isTyping) {
         e.preventDefault();
         onReject();
       }
@@ -170,7 +179,6 @@ const TicketCard: React.FC<TicketCardProps> = ({
               <ClubAutocomplete
                 value={editedValue}
                 onChange={setEditedValue}
-                autoFocus
               />
             ) : (
               <input
@@ -205,7 +213,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
 
       {/* Actions */}
       <div className="bg-gray-50 border-t border-gray-200 px-5 py-3.5 flex gap-3 flex-wrap items-center">
-        <Button onClick={() => onApprove(editedValue)}>
+        <Button ref={approveButtonRef} onClick={() => onApprove(editedValue)}>
           ✓ Apply to {isBulk ? `all ${ticket.recordIds.length} records` : 'record'}
         </Button>
         <Button variant="danger" onClick={onReject}>

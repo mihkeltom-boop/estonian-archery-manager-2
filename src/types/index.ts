@@ -41,8 +41,8 @@ export interface FilterState {
   club: string;
   competition: string;
   bowType: string;
-  ageClass: string;
-  gender: string;
+  ageClasses: string[];  // Changed from ageClass to support multiple
+  genders: string[];     // Changed from gender to support multiple
   distance: string;
   sourceFile: string;
   seasonalBest: boolean;

@@ -1,4 +1,4 @@
-import { useReducer, useMemo, useCallback } from 'react';
+import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import type { CompetitionRecord, FilterState, SortState } from '../types';
 
 // ── STATE SHAPE ────────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ const PAGE_SIZE = 50;
 
 const defaultFilters: FilterState = {
   searchText: '', club: '', competition: '', bowType: '',
-  ageClass: '', gender: '', distance: '', sourceFile: '', seasonalBest: false,
+  ageClasses: [], genders: [], distance: '', sourceFile: '', seasonalBest: false,
 };
 
 const initialState: State = {
@@ -97,8 +97,8 @@ function applyFilters(records: CompetitionRecord[], f: FilterState): Competition
   if (f.club)        d = d.filter(r => r.Club === f.club);
   if (f.competition) d = d.filter(r => r.Competition === f.competition);
   if (f.bowType)     d = d.filter(r => r['Bow Type'] === f.bowType);
-  if (f.ageClass)    d = d.filter(r => r['Age Class'] === f.ageClass);
-  if (f.gender)      d = d.filter(r => r.Gender === f.gender);
+  if (f.ageClasses.length > 0) d = d.filter(r => f.ageClasses.includes(r['Age Class']));
+  if (f.genders.length > 0)    d = d.filter(r => f.genders.includes(r.Gender));
   if (f.distance)    d = d.filter(r => r['Shooting Exercise'] === f.distance);
   if (f.sourceFile)  d = d.filter(r => r._sourceFile === f.sourceFile);
 
@@ -130,14 +130,21 @@ function applySort(records: CompetitionRecord[], sort: SortState): CompetitionRe
 export function useDatabaseState(initial: CompetitionRecord[] = []) {
   const [state, dispatch] = useReducer(reducer, { ...initialState, records: initial });
 
+  // Sync records when initial prop changes
+  useEffect(() => {
+    dispatch({ type: 'SET_RECORDS', payload: initial });
+  }, [initial]);
+
   const filtered = useMemo(() => applyFilters(state.records, state.filters), [state.records, state.filters]);
   const sorted   = useMemo(() => applySort(filtered, state.sort), [filtered, state.sort]);
   const displayed = useMemo(() => sorted.slice(0, state.page * PAGE_SIZE), [sorted, state.page]);
 
   const activeFilterCount = useMemo(() => {
     const f = state.filters;
-    return [f.searchText, f.club, f.competition, f.bowType, f.ageClass, f.gender, f.distance, f.sourceFile, f.seasonalBest]
-      .filter(Boolean).length;
+    return [
+      f.searchText, f.club, f.competition, f.bowType, f.distance, f.sourceFile,
+      f.genders.length > 0, f.ageClasses.length > 0, f.seasonalBest
+    ].filter(Boolean).length;
   }, [state.filters]);
 
   const statistics = useMemo(() => {

@@ -48,7 +48,23 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
   const clubOptions     = uniqueValues('Club').map(v => ({ value: v, label: v }));
   const bowOptions      = uniqueValues('Bow Type').map(v => ({ value: v, label: v }));
   const distanceOptions = uniqueValues('Shooting Exercise').map(v => ({ value: v, label: v }));
-  const genderOptions   = ['Men', 'Women'].map(v => ({ value: v, label: v }));
+
+  // Multi-select filter helpers
+  const toggleGender = (gender: string) => {
+    const current = state.filters.genders;
+    const updated = current.includes(gender)
+      ? current.filter(g => g !== gender)
+      : [...current, gender];
+    db.setFilter('genders', updated);
+  };
+
+  const toggleAgeClass = (ageClass: string) => {
+    const current = state.filters.ageClasses;
+    const updated = current.includes(ageClass)
+      ? current.filter(a => a !== ageClass)
+      : [...current, ageClass];
+    db.setFilter('ageClasses', updated);
+  };
 
   const handleExport = () => {
     const csv = exportToCSV(
@@ -123,21 +139,24 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-4 flex-wrap">
 
-            {/* Gender pills */}
-            <div className="flex gap-1">
-              {['', 'Men', 'Women'].map(g => (
-                <button
-                  key={g}
-                  onClick={() => db.setFilter('gender', g)}
-                  className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
-                    state.filters.gender === g
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {g || 'All Genders'}
-                </button>
-              ))}
+            {/* Gender pills - multi-select */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 font-medium">Gender:</span>
+              <div className="flex gap-1">
+                {['Men', 'Women'].map(g => (
+                  <button
+                    key={g}
+                    onClick={() => toggleGender(g)}
+                    className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                      state.filters.genders.includes(g)
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Seasonal best toggle */}
@@ -160,6 +179,26 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
               Clear all filters
             </button>
           )}
+        </div>
+
+        {/* Age class pills - multi-select */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-500 font-medium">Age Class:</span>
+          <div className="flex gap-1 flex-wrap">
+            {['Adult', 'U21', 'U18', 'U15', 'U13', '+50', '+60', '+70'].map(age => (
+              <button
+                key={age}
+                onClick={() => toggleAgeClass(age)}
+                className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                  state.filters.ageClasses.includes(age)
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {age}
+              </button>
+            ))}
+          </div>
         </div>
       </Card>
 

@@ -9,10 +9,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: React.ReactNode;
 }
 
-export const Button: React.FC<ButtonProps> = ({
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   children, variant = 'primary', size = 'md',
   loading, icon, className = '', disabled, ...props
-}) => {
+}, ref) => {
   const variants = {
     primary:   'bg-blue-600 hover:bg-blue-700 text-white shadow-sm',
     secondary: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300',
@@ -26,6 +26,7 @@ export const Button: React.FC<ButtonProps> = ({
   };
   return (
     <button
+      ref={ref}
       disabled={disabled || loading}
       className={`inline-flex items-center font-medium rounded-lg transition-all
         disabled:opacity-40 disabled:cursor-not-allowed
@@ -43,7 +44,7 @@ export const Button: React.FC<ButtonProps> = ({
       {children}
     </button>
   );
-};
+});
 
 // ── BADGE ──────────────────────────────────────────────────────────────────
 
