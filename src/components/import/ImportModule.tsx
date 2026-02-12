@@ -19,6 +19,7 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
   const [parsing, setParsing]     = useState(false);
   const [progress, setProgress]   = useState(0);
   const [parseError, setParseError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   // ── File handling ──────────────────────────────────────────────────────
@@ -32,6 +33,8 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
       const existing = new Set(prev.map(s => s.file.name));
       return [...prev, ...incoming.filter(s => !existing.has(s.file.name))];
     });
+    setSuccessMessage(''); // Clear success message when adding new files
+    setParseError(''); // Clear error message when adding new files
   };
 
   const removeFile = (name: string) =>
@@ -43,7 +46,7 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
     const valid = selected.filter(s => !s.error);
     if (!valid.length) return;
 
-    setParsing(true); setProgress(5); setParseError('');
+    setParsing(true); setProgress(5); setParseError(''); setSuccessMessage('');
 
     try {
       const all: CompetitionRecord[] = [];
@@ -59,7 +62,17 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
       // Re-sequence IDs globally
       all.forEach((r, i) => { r._id = i + 1; });
       setProgress(100);
-      setTimeout(() => { setParsing(false); onParsed(all); }, 300);
+
+      const fileCount = valid.length;
+      const recordCount = all.length;
+      setSuccessMessage(`✓ Successfully parsed ${fileCount} file${fileCount > 1 ? 's' : ''} → ${recordCount} records added`);
+
+      setTimeout(() => {
+        setParsing(false);
+        setSelected([]); // Clear files after successful parsing
+        if (inputRef.current) inputRef.current.value = ''; // Reset file input
+        onParsed(all);
+      }, 300);
 
     } catch (err) {
       setParsing(false);
@@ -127,35 +140,58 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
 
       {/* Selected files */}
       {selected.length > 0 && (
-        <Card className="divide-y divide-gray-100">
-          {selected.map(({ file, error }) => (
-            <div key={file.name} className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm
-                  ${error ? 'bg-red-50' : 'bg-blue-50'}`}>
-                  {error ? '⚠️' : '📄'}
+        <Card>
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">
+              {selected.length} file{selected.length > 1 ? 's' : ''} selected
+            </span>
+            <button
+              onClick={() => {
+                setSelected([]);
+                if (inputRef.current) inputRef.current.value = '';
+              }}
+              className="text-xs text-red-500 hover:text-red-700 font-medium"
+            >
+              Clear all
+            </button>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {selected.map(({ file, error }) => (
+              <div key={file.name} className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm
+                    ${error ? 'bg-red-50' : 'bg-blue-50'}`}>
+                    {error ? '⚠️' : '📄'}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                    {error
+                      ? <p className="text-xs text-red-500">{error}</p>
+                      : <p className="text-xs text-gray-400">{(file.size / 1024).toFixed(1)} KB</p>
+                    }
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                  {error
-                    ? <p className="text-xs text-red-500">{error}</p>
-                    : <p className="text-xs text-gray-400">{(file.size / 1024).toFixed(1)} KB</p>
-                  }
-                </div>
+                <button
+                  onClick={e => { e.stopPropagation(); removeFile(file.name); }}
+                  className="text-gray-300 hover:text-red-400 transition-colors text-xl leading-none px-2"
+                >
+                  ×
+                </button>
               </div>
-              <button
-                onClick={e => { e.stopPropagation(); removeFile(file.name); }}
-                className="text-gray-300 hover:text-red-400 transition-colors text-xl leading-none px-2"
-              >
-                ×
-              </button>
-            </div>
-          ))}
+            ))}
+          </div>
         </Card>
       )}
 
       {/* Progress */}
       {parsing && <ProgressBar value={progress} label="Parsing and auto-correcting records…" />}
+
+      {/* Success message */}
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-700">
+          {successMessage}
+        </div>
+      )}
 
       {/* Error */}
       {parseError && (
