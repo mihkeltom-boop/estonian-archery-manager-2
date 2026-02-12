@@ -1,8 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Button, Card, ProgressBar } from '../common';
 import { parseCSVText } from '../../utils/parsing';
-import { validateFile } from '../../utils/security';
-import { SAMPLE_CSV } from '../../constants/clubs';
+import { validateFile, downloadCSV } from '../../utils/security';
 import type { CompetitionRecord } from '../../types';
 
 interface Props {
@@ -68,11 +67,15 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
     }
   };
 
-  const loadSample = async () => {
-    setParsing(true); setProgress(40);
-    const records = await parseCSVText(SAMPLE_CSV, 'sample_data.csv');
-    setProgress(100);
-    setTimeout(() => { setParsing(false); onParsed(records); }, 300);
+  // ── Sample file download ───────────────────────────────────────────────
+
+  const downloadSampleCSV = () => {
+    const sampleContent = `Kuupäev,Eesnimi,Perekonnanimi,Klubi,Võistlusklass,Vanuserühm,Distants,Tulemus,Võistlus
+15.12.2024,Mari,Mägi,TLVK,Sportvibu naised,U21,2x18m,580,Tallinn Open 2024
+14.12.2024,Jaan,Tamm,VVVK,Plokkvibu mehed,Adult,18m,562,Viljandi Cup
+13.12.2024,Liisa,Kask,SAG,Sportvibu naised,U18,2x18m,545,Eesti Meistrivõistlused`;
+
+    downloadCSV(sampleContent, 'sample_archery_data.csv');
   };
 
   // ── Drag & drop ────────────────────────────────────────────────────────
@@ -93,7 +96,7 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Import CSV Files</h2>
         <p className="text-gray-500 mt-1">
-          Upload Estonian archery competition data or load the built-in sample dataset.
+          Upload Estonian archery competition data in CSV format.
         </p>
       </div>
 
@@ -168,9 +171,6 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
             {parsing ? 'Parsing…' : `▶ Parse ${validCount} file${validCount > 1 ? 's' : ''}`}
           </Button>
         )}
-        <Button variant="secondary" onClick={loadSample} disabled={parsing} size="lg">
-          ⚡ Load Sample Data
-        </Button>
       </div>
 
       {/* Format reference */}
@@ -193,6 +193,14 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
               Distance, Result, Competition
             </code>
           </div>
+        </div>
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <button
+            onClick={downloadSampleCSV}
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+          >
+            <span>⬇</span> Download sample CSV file
+          </button>
         </div>
       </Card>
     </div>

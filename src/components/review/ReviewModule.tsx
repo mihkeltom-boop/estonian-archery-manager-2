@@ -95,6 +95,28 @@ const TicketCard: React.FC<TicketCardProps> = ({
   const [editedValue, setEditedValue] = useState(ticket.suggestedValue);
   const isBulk = ticket.recordIds.length > 1;
 
+  // Keyboard shortcuts for approve/reject
+  useEffect(() => {
+    if (decision) return; // Already decided
+
+    const handler = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in input fields
+      if ((e.target as HTMLElement).matches('input, select, textarea')) return;
+
+      if (e.key === 'Enter' || e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        onApprove(editedValue);
+      }
+      if (e.key === 'Delete' || e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        onReject();
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [editedValue, decision, onApprove, onReject]);
+
   if (decision) {
     return (
       <div className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm
@@ -190,8 +212,8 @@ const TicketCard: React.FC<TicketCardProps> = ({
           ✗ Reject (R)
         </Button>
         <span className="text-xs text-gray-400 ml-auto hidden sm:block">
-          <kbd className="bg-gray-200 rounded px-1">A</kbd> approve &nbsp;
-          <kbd className="bg-gray-200 rounded px-1">R</kbd> reject
+          <kbd className="bg-gray-200 rounded px-1">Enter</kbd> or <kbd className="bg-gray-200 rounded px-1">A</kbd> approve &nbsp;
+          <kbd className="bg-gray-200 rounded px-1">Delete</kbd> or <kbd className="bg-gray-200 rounded px-1">R</kbd> reject
         </span>
       </div>
     </Card>
@@ -323,22 +345,6 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
           style={{ width: `${(reviewedCount / tickets.length) * 100}%` }}
         />
       </div>
-
-      {/* Already-decided tickets (collapsed summary) */}
-      {reviewedCount > 0 && (
-        <div className="space-y-2">
-          {tickets.slice(0, currentIdx).map(ticket => (
-            <TicketCard
-              key={ticket.id}
-              ticket={{ ...ticket, resolvedValue: decisions[ticket.id]?.value ?? null }}
-              affectedRecords={records.filter(r => ticket.recordIds.includes(r._id))}
-              decision={decisions[ticket.id]?.decision ?? null}
-              onApprove={() => {}}
-              onReject={() => {}}
-            />
-          ))}
-        </div>
-      )}
 
       {/* Active ticket */}
       {current && (

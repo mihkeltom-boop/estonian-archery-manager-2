@@ -59,13 +59,29 @@ export const levenshtein = (a: string, b: string): number => {
 export interface ClubMatchResult {
   code: string;
   confidence: number;
-  method: 'exact-code' | 'exact-name' | 'fuzzy-stripped' | 'fuzzy-raw' | 'unknown';
+  method: 'exact-code' | 'exact-name' | 'fuzzy-stripped' | 'fuzzy-raw' | 'exact-code-embedded' | 'unknown';
 }
 
 export const matchClub = (input: string): ClubMatchResult => {
   if (!input) return { code: '', confidence: 0, method: 'unknown' };
   const clubs = getClubs(); // live list — includes user-added clubs
   const trimmed = input.trim();
+
+  // Check for embedded club code at the start (e.g., "TLVK Tallinna Laskurvibuklubi")
+  const words = trimmed.split(/\s+/);
+  const firstWord = words[0]?.toUpperCase().trim();
+
+  // Club codes are typically 2-5 characters
+  if (firstWord && firstWord.length >= 2 && firstWord.length <= 5) {
+    const codeMatch = clubs.find(c => c.code === firstWord);
+    if (codeMatch) {
+      return {
+        code: codeMatch.code,
+        confidence: 100,
+        method: 'exact-code-embedded'
+      };
+    }
+  }
 
   const exactCode = clubs.find(c => c.code.toLowerCase() === trimmed.toLowerCase());
   if (exactCode) return { code: exactCode.code, confidence: 100, method: 'exact-code' };
