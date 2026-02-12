@@ -2,7 +2,7 @@
 // CLUB STORE
 //
 // Single source of truth for the acceptable clubs list.
-// Ships with the 19 built-in Estonian clubs, but users can add their own.
+// Ships with the 17 built-in Estonian clubs, but users can add their own.
 // Persisted to localStorage so additions survive page refreshes.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -15,25 +15,23 @@ export interface Club {
 const STORAGE_KEY = 'archery_clubs_v2';
 
 const BUILT_IN_CLUBS: Club[] = [
-  { code: 'TLVK', name: 'Tallinna Laskurvibuklubi' },
-  { code: 'VVVK', name: 'Viljandi Vibukool' },
-  { code: 'SAG',  name: 'Tallinna SK' },
-  { code: 'TVSK', name: 'Tapa' },
-  { code: 'JVI',  name: 'Jõhvi' },
-  { code: 'PVM',  name: 'Põlva-Võru-Maardu' },
-  { code: 'KSK',  name: 'Keila SK' },
-  { code: 'SJK',  name: 'Sindi Jõuklubi' },
-  { code: 'STR',  name: 'Silla-Tare Rahvaspordiklubi' },
-  { code: 'MAG',  name: 'Margus' },
-  { code: 'TYRI', name: 'Türi SK' },
-  { code: 'BH',   name: 'BH Fitness' },
-  { code: 'KVK',  name: 'Kiili Vibukool' },
-  { code: 'LVL',  name: 'Laulasmaa VK' },
-  { code: 'VVK',  name: 'Valga Vibukool' },
-  { code: 'SVK',  name: 'Saku Vibukool' },
-  { code: 'TL',   name: 'Tiit Laasberg' },
-  { code: 'AMA',  name: 'Amatöör' },
-  { code: 'NS',   name: 'NS' },
+  { code: 'VVVK', name: 'Vana-Võidu VK/Viljandi SK' },
+  { code: 'SAG',  name: 'Sagittarius' },
+  { code: 'TVSK', name: 'Tartu Valla Spordiklubi' },
+  { code: 'JVI',  name: 'Järvakandi Vibuklubi Ilves' },
+  { code: 'TLVK', name: 'Tallinna VK' },
+  { code: 'PVM',  name: 'Pärnu Vibuklubi Meelis' },
+  { code: 'KSK',  name: 'Kajamaa SK' },
+  { code: 'STR',  name: 'Storm SK' },
+  { code: 'MAG',  name: 'Mägilased' },
+  { code: 'SJK',  name: 'Suure-Jaani Vibuklubi' },
+  { code: 'TYRI', name: 'Türi Vibukool' },
+  { code: 'BH',   name: 'Baltic Hunter SC' },
+  { code: 'KVK',  name: 'Kagu Vibuklubi' },
+  { code: 'SVK',  name: 'Saarde Vibuklubi' },
+  { code: 'LVL',  name: 'Lääne Vibulaskjad' },
+  { code: 'SMA',  name: 'Saaremaa Vibuklubi' },
+  { code: 'VVK',  name: 'Vooremaa Vibuklubi' },
 ];
 
 // ── Internal state ────────────────────────────────────────────────────────────
