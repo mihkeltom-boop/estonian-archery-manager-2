@@ -143,14 +143,26 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
       complete: ({ data }) => {
         resolve(data.map((rawRow, i) => {
           const row         = mapHeaders(rawRow);
-          const date        = sanitize(row['Date'] || '');
-          const athlete     = sanitize(row['Athlete'] || '');
-          const clubRaw     = sanitize(row['Club'] || '');
-          const bowClass    = sanitize(row['Class'] || row['Bow Type'] || '');
-          const ageRaw      = sanitize(row['AgeClass'] || row['Age Class'] || '');
-          const distRaw     = sanitize(row['Distance'] || row['Shooting Exercise'] || '');
-          const result      = parseInt(sanitize(row['Result'] || '0')) || 0;
-          const competition = sanitize(row['Competition'] || '');
+
+          // Try multiple field names for Date (handle unmapped or case variations)
+          const date = sanitize(
+            row['Date'] || row['date'] || row['DATE'] ||
+            row['Kuupäev'] || row['kuupäev'] || row['Aeg'] || ''
+          );
+
+          // Try multiple field names for Athlete (handle unmapped or case variations)
+          const athlete = sanitize(
+            row['Athlete'] || row['athlete'] || row['ATHLETE'] ||
+            row['Sportlane'] || row['sportlane'] || row['Nimi'] ||
+            row['Name'] || row['name'] || ''
+          );
+
+          const clubRaw     = sanitize(row['Club'] || row['Klubi'] || row['klubi'] || '');
+          const bowClass    = sanitize(row['Class'] || row['Bow Type'] || row['Vibu'] || '');
+          const ageRaw      = sanitize(row['AgeClass'] || row['Age Class'] || row['Vanuserühm'] || '');
+          const distRaw     = sanitize(row['Distance'] || row['Shooting Exercise'] || row['Distants'] || '');
+          const result      = parseInt(sanitize(row['Result'] || row['Tulemus'] || row['Points'] || '0')) || 0;
+          const competition = sanitize(row['Competition'] || row['Võistlus'] || row['competition'] || '');
           const clubMatch   = matchClub(clubRaw);
           const bowType     = translateBowType(bowClass);
           const ts          = Date.now();

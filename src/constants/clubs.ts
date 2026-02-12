@@ -27,15 +27,54 @@ export const ESTONIAN_CLUBS = [
 
 // Maps Estonian CSV column names → internal field names
 export const ESTONIAN_HEADERS: Record<string, string> = {
+  // Date variations
   'Kuupäev':       'Date',
+  'Kuupäev ':      'Date',  // with trailing space
+  'kuupäev':       'Date',  // lowercase
+  'Aeg':           'Date',  // alternative: "time"
+  'Päev':          'Date',  // alternative: "day"
+
+  // Athlete variations
   'Sportlane':     'Athlete',
+  'Sportlane ':    'Athlete',  // with trailing space
+  'sportlane':     'Athlete',  // lowercase
+  'Nimi':          'Athlete',  // alternative: "name"
+  'Sportlase nimi':'Athlete',  // "athlete's name"
+  'Laskur':        'Athlete',  // alternative: "shooter"
+
+  // Competition
   'Võistlus':      'Competition',
+  'võistlus':      'Competition',
+
+  // Club
   'Klubi':         'Club',
+  'klubi':         'Club',
+
+  // Class/Bow Type
   'Võistlusklass': 'Class',
+  'võistlusklass': 'Class',
+  'Klass':         'Class',
+  'Vibu tüüp':     'Bow Type',
+  'Vibu':          'Bow Type',
+
+  // Age Class
   'Vanuserühm':    'AgeClass',
-  'Distants':      'Distance',
-  'Tulemus':       'Result',
   'Vanuseklass':   'AgeClass',
+  'vanuserühm':    'AgeClass',
+  'vanuseklass':   'AgeClass',
+  'Vanus':         'AgeClass',
+
+  // Distance/Exercise
+  'Distants':      'Distance',
+  'distants':      'Distance',
+  'Harjutus':      'Shooting Exercise',
+  'Laskmine':      'Shooting Exercise',
+
+  // Result
+  'Tulemus':       'Result',
+  'tulemus':       'Result',
+  'Punktid':       'Result',  // alternative: "points"
+  'Skoor':         'Result',  // alternative: "score"
 };
 
 // ── BOW TYPE TRANSLATIONS ──────────────────────────────────────────────────
