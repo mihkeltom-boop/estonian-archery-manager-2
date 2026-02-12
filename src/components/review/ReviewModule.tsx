@@ -94,18 +94,94 @@ function countVariants(values: string[]): { sorted: [string, number][]; dominanc
   return { sorted, dominance };
 }
 
+/** Extract year from date string (DD.MM.YYYY or YYYY-MM-DD) */
+function extractYear(date: string): string {
+  if (!date) return 'unknown';
+  // DD.MM.YYYY
+  const dotParts = date.split('.');
+  if (dotParts.length === 3 && dotParts[2].length === 4) return dotParts[2];
+  // YYYY-MM-DD
+  const dashParts = date.split('-');
+  if (dashParts.length === 3 && dashParts[0].length === 4) return dashParts[0];
+  return 'unknown';
+}
+
+/** Whether an age class is a specific (non-Adult) class */
+function isSpecificAgeClass(ac: string): boolean {
+  return ac !== 'Adult';
+}
+
 /**
- * After import issues are resolved, check if the same athlete has
- * inconsistent data across their results. Only flags clear mistakes:
+ * Auto-fix age classes: within a calendar year, an athlete's age class
+ * is fixed. If the same athlete has "Adult" and one specific class
+ * (U13, U18, +50, etc.) in the same year, the specific class wins.
+ *
+ * Returns updated records (mutates nothing).
+ */
+function autoFixAgeClasses(records: CompetitionRecord[]): CompetitionRecord[] {
+  // Group by normalized athlete name + year
+  const groups = new Map<string, CompetitionRecord[]>();
+  for (const r of records) {
+    const key = `${r.Athlete.trim().toLowerCase()}__${extractYear(r.Date)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(r);
+  }
+
+  // Build a fix map: recordId → correct age class
+  const fixes = new Map<number, string>();
+
+  for (const recs of groups.values()) {
+    const ageClasses = [...new Set(recs.map(r => r['Age Class']))];
+    if (ageClasses.length <= 1) continue;
+
+    // Separate specific classes from Adult
+    const specific = ageClasses.filter(isSpecificAgeClass);
+
+    if (specific.length === 1) {
+      // One specific class + Adult → auto-fix all to the specific class
+      const correctClass = specific[0];
+      for (const r of recs) {
+        if (r['Age Class'] !== correctClass) {
+          fixes.set(r._id, correctClass);
+        }
+      }
+    }
+    // If multiple specific classes or no Adult involved → leave for ticket
+  }
+
+  if (fixes.size === 0) return records;
+
+  return records.map(r => {
+    const fix = fixes.get(r._id);
+    if (!fix) return r;
+    return {
+      ...r,
+      'Age Class': fix as CompetitionRecord['Age Class'],
+      _corrections: [
+        ...r._corrections,
+        {
+          field: 'Age Class',
+          original: r['Age Class'],
+          corrected: fix,
+          method: 'extraction' as const,
+          confidence: 95,
+          timestamp: Date.now(),
+        },
+      ],
+    };
+  });
+}
+
+/**
+ * After import issues are resolved and age classes are auto-fixed,
+ * check for remaining inconsistencies in athlete data:
  *
  * - Name spelling: always flag (different spellings = always a mistake)
- * - Gender: always flag (an athlete can't switch genders between results)
- * - Age class: only flag when one value dominates (≥60%), since an athlete
- *   could legitimately age up mid-season (e.g. U18 → U21). A near 50/50
- *   split is likely legitimate and should not be flagged.
+ * - Gender: always flag (an athlete can't switch genders)
+ * - Age class: only flag remaining conflicts (multiple specific classes
+ *   in the same year). Simple Adult→specific cases are already auto-fixed.
  *
- * Confidence is proportional to how dominant the majority value is,
- * so "4 Women / 1 Men" (80%) ranks higher than "3 Women / 2 Men" (60%).
+ * Confidence is proportional to how dominant the majority value is.
  */
 function buildConsistencyTickets(records: CompetitionRecord[]): IssueTicket[] {
   const tickets: IssueTicket[] = [];
@@ -139,7 +215,7 @@ function buildConsistencyTickets(records: CompetitionRecord[]): IssueTicket[] {
       });
     }
 
-    // Gender: always flag — an athlete cannot switch genders between results
+    // Gender: always flag
     const genderVariants = [...new Set(recs.map(r => r.Gender))];
     if (genderVariants.length > 1) {
       const { sorted, dominance } = countVariants(recs.map(r => r.Gender));
@@ -155,23 +231,28 @@ function buildConsistencyTickets(records: CompetitionRecord[]): IssueTicket[] {
       });
     }
 
-    // Age class: only flag when one value clearly dominates (≥60%).
-    // A near 50/50 split could be a legitimate age-up mid-season.
-    const ageVariants = [...new Set(recs.map(r => r['Age Class']))];
-    if (ageVariants.length > 1) {
-      const { sorted, dominance } = countVariants(recs.map(r => r['Age Class']));
-      if (dominance >= 0.6) {
-        tickets.push({
-          id: `consistency::Age Class::${normName}`,
-          field: 'Age Class',
-          originalValue: `${athleteName}: ${sorted.map(([v, n]) => `${v} (${n}x)`).join(' / ')}`,
-          suggestedValue: sorted[0][0],
-          confidence: Math.round(dominance * 100),
-          method: 'consistency',
-          recordIds: recs.map(r => r._id),
-          resolvedValue: null,
-        });
-      }
+    // Age class: check per year for remaining conflicts
+    // (Adult→specific already auto-fixed, only multi-specific conflicts remain)
+    const yearGroups = new Map<string, CompetitionRecord[]>();
+    for (const r of recs) {
+      const year = extractYear(r.Date);
+      if (!yearGroups.has(year)) yearGroups.set(year, []);
+      yearGroups.get(year)!.push(r);
+    }
+    for (const [year, yearRecs] of yearGroups) {
+      const ageVariants = [...new Set(yearRecs.map(r => r['Age Class']))];
+      if (ageVariants.length <= 1) continue;
+      const { sorted, dominance } = countVariants(yearRecs.map(r => r['Age Class']));
+      tickets.push({
+        id: `consistency::Age Class::${normName}::${year}`,
+        field: 'Age Class',
+        originalValue: `${athleteName} (${year}): ${sorted.map(([v, n]) => `${v} (${n}x)`).join(' / ')}`,
+        suggestedValue: sorted[0][0],
+        confidence: Math.round(dominance * 100),
+        method: 'consistency',
+        recordIds: yearRecs.map(r => r._id),
+        resolvedValue: null,
+      });
     }
   }
 
@@ -522,12 +603,16 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
   // ── Transition to consistency phase ───────────────────────────────────────
 
   const transitionToConsistency = (recs: CompetitionRecord[]) => {
-    const cTickets = buildConsistencyTickets(recs);
+    // Auto-fix obvious age class issues (Adult + one specific class in same year)
+    const autoFixed = autoFixAgeClasses(recs);
+
+    // Then check for remaining inconsistencies
+    const cTickets = buildConsistencyTickets(autoFixed);
     if (cTickets.length === 0) {
       // No inconsistencies, go straight to database
-      onComplete(recs);
+      onComplete(autoFixed);
     } else {
-      setIntermediateRecords(recs);
+      setIntermediateRecords(autoFixed);
       setConsistencyTickets(cTickets);
       setPhase('consistency');
     }
