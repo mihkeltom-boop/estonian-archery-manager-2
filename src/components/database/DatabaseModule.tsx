@@ -18,6 +18,24 @@ const COLUMNS = [
   { key: 'Competition',       label: 'Competition' },
 ] as const;
 
+// ── COLOR MAPS ──────────────────────────────────────────────────────────────
+
+const AGE_CLASS_COLOR: Record<string, 'gray' | 'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'teal'> = {
+  'Adult': 'blue',
+  'U21':   'purple',
+  'U18':   'green',
+  'U15':   'yellow',
+  'U13':   'red',
+  '+50':   'teal',
+  '+60':   'teal',
+  '+70':   'teal',
+};
+
+const GENDER_COLOR: Record<string, 'blue' | 'purple'> = {
+  'Men':   'blue',
+  'Women': 'purple',
+};
+
 // ── RESULT CELL ─────────────────────────────────────────────────────────────
 
 const ResultCell: React.FC<{ value: number }> = ({ value }) => (
@@ -45,8 +63,6 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
 
   // Unique option lists for dropdowns
   const clubOptions    = uniqueValues('Club').map(v => ({ value: v, label: v }));
-  const bowOptions     = uniqueValues('Bow Type').map(v => ({ value: v, label: v }));
-  const genderOptions  = ['Men', 'Women'].map(v => ({ value: v, label: v }));
 
   const handleExport = () => {
     const csv = exportToCSV(
@@ -91,29 +107,45 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
 
       {/* Filters */}
       <Card className="p-4 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Input
-            className="sm:col-span-2 lg:col-span-2"
-            placeholder="🔍 Search athletes, clubs, competitions…"
-            value={state.filters.searchText}
-            onChange={e => db.setFilter('searchText', e.target.value)}
-          />
+        {/* Row 1: Search */}
+        <Input
+          placeholder="🔍 Search athletes, clubs, competitions…"
+          value={state.filters.searchText}
+          onChange={e => db.setFilter('searchText', e.target.value)}
+        />
+
+        {/* Row 2: Club dropdown (small) */}
+        <div className="max-w-xs">
           <Select
             options={clubOptions}
             placeholder="All Clubs"
             value={state.filters.club}
             onChange={e => db.setFilter('club', e.target.value)}
           />
-          <Select
-            options={bowOptions}
-            placeholder="All Bow Types"
-            value={state.filters.bowType}
-            onChange={e => db.setFilter('bowType', e.target.value)}
-          />
         </div>
 
+        {/* Row 3: Pill filters */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-4 flex-wrap">
+
+            {/* Distance pills */}
+            <div className="flex gap-1 flex-wrap">
+              {['', ...uniqueValues('Shooting Exercise')].map(d => (
+                <button
+                  key={d}
+                  onClick={() => db.setFilter('distance', d)}
+                  className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                    state.filters.distance === d
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {d || 'All Distances'}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-px h-6 bg-gray-200" />
 
             {/* Gender pills */}
             <div className="flex gap-1">
@@ -131,6 +163,27 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
                 </button>
               ))}
             </div>
+
+            <div className="w-px h-6 bg-gray-200" />
+
+            {/* Bow Type pills */}
+            <div className="flex gap-1 flex-wrap">
+              {['', ...uniqueValues('Bow Type')].map(bt => (
+                <button
+                  key={bt}
+                  onClick={() => db.setFilter('bowType', bt)}
+                  className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                    state.filters.bowType === bt
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {bt || 'All Bow Types'}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-px h-6 bg-gray-200" />
 
             {/* Seasonal best toggle */}
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
@@ -198,8 +251,12 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
                       <Badge color="blue">{r.Club}</Badge>
                     </td>
                     <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{r['Bow Type']}</td>
-                    <td className="px-4 py-3 text-gray-700">{r['Age Class']}</td>
-                    <td className="px-4 py-3 text-gray-700">{r.Gender}</td>
+                    <td className="px-4 py-3">
+                      <Badge color={AGE_CLASS_COLOR[r['Age Class']] ?? 'gray'}>{r['Age Class']}</Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge color={GENDER_COLOR[r.Gender] ?? 'gray'}>{r.Gender}</Badge>
+                    </td>
                     <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{r['Shooting Exercise']}</td>
                     <td className="px-4 py-3"><ResultCell value={r.Result} /></td>
                     <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{r.Competition}</td>
