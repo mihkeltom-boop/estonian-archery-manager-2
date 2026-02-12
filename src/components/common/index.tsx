@@ -51,9 +51,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
 interface BadgeProps {
   children: React.ReactNode;
   color?: 'gray' | 'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'teal';
+  title?: string; // Hover tooltip
 }
 
-export const Badge: React.FC<BadgeProps> = ({ children, color = 'gray' }) => {
+export const Badge: React.FC<BadgeProps> = ({ children, color = 'gray', title }) => {
   const colors = {
     gray:   'bg-gray-100 text-gray-700',
     blue:   'bg-blue-100 text-blue-700',
@@ -64,7 +65,10 @@ export const Badge: React.FC<BadgeProps> = ({ children, color = 'gray' }) => {
     teal:   'bg-teal-100 text-teal-700',
   };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[color]}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[color]} ${title ? 'cursor-help' : ''}`}
+      title={title}
+    >
       {children}
     </span>
   );

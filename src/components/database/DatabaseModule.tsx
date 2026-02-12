@@ -3,6 +3,7 @@ import { Button, Card, Badge, StatCard, Input, Select, EmptyState } from '../com
 import { useDatabaseState } from '../../hooks/useDatabaseState';
 import { exportToCSV, downloadCSV } from '../../utils/security';
 import { capitalizeName } from '../../utils/formatting';
+import { getClubs } from '../../utils/clubStore';
 import type { CompetitionRecord, FilterState } from '../../types';
 
 // ── TABLE COLUMN DEFINITIONS ────────────────────────────────────────────────
@@ -18,6 +19,15 @@ const COLUMNS = [
   { key: 'Result',            label: 'Result' },
   { key: 'Competition',       label: 'Competition' },
 ] as const;
+
+// ── HELPER FUNCTIONS ────────────────────────────────────────────────────────
+
+// Get full club name from code for tooltip
+const getClubName = (code: string): string => {
+  const clubs = getClubs();
+  const club = clubs.find(c => c.code === code);
+  return club ? club.name : code;
+};
 
 // ── RESULT CELL ─────────────────────────────────────────────────────────────
 
@@ -242,10 +252,12 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{r.Date}</td>
                     <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{capitalizeName(r.Athlete)}</td>
                     <td className="px-4 py-3">
-                      <Badge color="blue">{r.Club}</Badge>
+                      <Badge color="blue" title={getClubName(r.Club)}>{r.Club}</Badge>
                     </td>
                     <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{r['Bow Type']}</td>
-                    <td className="px-4 py-3 text-gray-700">{r['Age Class']}</td>
+                    <td className="px-4 py-3">
+                      {r['Age Class'] && <Badge color="purple">{r['Age Class']}</Badge>}
+                    </td>
                     <td className="px-4 py-3 text-gray-700">{r.Gender}</td>
                     <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{r['Shooting Exercise']}</td>
                     <td className="px-4 py-3"><ResultCell value={r.Result} /></td>
