@@ -83,9 +83,29 @@ function buildTickets(records: CompetitionRecord[]): IssueTicket[] {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * After import issues are resolved, check if the same athlete appears with
- * different name spellings, age classes, or genders. Group by a normalized
- * athlete key (lowercase, trimmed) and flag inconsistencies.
+ * Helper: count occurrences of each value and return sorted entries
+ * (most common first) plus the dominance ratio of the top value.
+ */
+function countVariants(values: string[]): { sorted: [string, number][]; dominance: number } {
+  const counts = new Map<string, number>();
+  values.forEach(v => counts.set(v, (counts.get(v) || 0) + 1));
+  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  const dominance = sorted[0][1] / values.length;
+  return { sorted, dominance };
+}
+
+/**
+ * After import issues are resolved, check if the same athlete has
+ * inconsistent data across their results. Only flags clear mistakes:
+ *
+ * - Name spelling: always flag (different spellings = always a mistake)
+ * - Gender: always flag (an athlete can't switch genders between results)
+ * - Age class: only flag when one value dominates (≥60%), since an athlete
+ *   could legitimately age up mid-season (e.g. U18 → U21). A near 50/50
+ *   split is likely legitimate and should not be flagged.
+ *
+ * Confidence is proportional to how dominant the majority value is,
+ * so "4 Women / 1 Men" (80%) ranks higher than "3 Women / 2 Men" (60%).
  */
 function buildConsistencyTickets(records: CompetitionRecord[]): IssueTicket[] {
   const tickets: IssueTicket[] = [];
@@ -101,68 +121,62 @@ function buildConsistencyTickets(records: CompetitionRecord[]): IssueTicket[] {
   for (const [normName, recs] of athleteGroups) {
     if (recs.length < 2) continue;
 
-    // Check name spelling variants
     const nameVariants = [...new Set(recs.map(r => r.Athlete))];
-    if (nameVariants.length > 1) {
-      // Suggest the most common spelling
-      const counts = new Map<string, number>();
-      recs.forEach(r => counts.set(r.Athlete, (counts.get(r.Athlete) || 0) + 1));
-      const mostCommon = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const athleteName = nameVariants.length === 1 ? nameVariants[0] : recs[0].Athlete;
 
+    // Name spelling: always flag any inconsistency
+    if (nameVariants.length > 1) {
+      const { sorted, dominance } = countVariants(recs.map(r => r.Athlete));
       tickets.push({
         id: `consistency::Athlete::${normName}`,
         field: 'Athlete',
         originalValue: nameVariants.join(' / '),
-        suggestedValue: mostCommon,
-        confidence: 50,
+        suggestedValue: sorted[0][0],
+        confidence: Math.round(dominance * 100),
         method: 'consistency',
         recordIds: recs.map(r => r._id),
         resolvedValue: null,
       });
     }
 
-    // Check age class variants (for same athlete)
-    const ageVariants = [...new Set(recs.map(r => r['Age Class']))];
-    if (ageVariants.length > 1) {
-      const counts = new Map<string, number>();
-      recs.forEach(r => counts.set(r['Age Class'], (counts.get(r['Age Class']) || 0) + 1));
-      const mostCommon = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-      const athleteName = nameVariants.length === 1 ? nameVariants[0] : recs[0].Athlete;
-
-      tickets.push({
-        id: `consistency::Age Class::${normName}`,
-        field: 'Age Class',
-        originalValue: `${athleteName}: ${ageVariants.join(' / ')}`,
-        suggestedValue: mostCommon,
-        confidence: 50,
-        method: 'consistency',
-        recordIds: recs.map(r => r._id),
-        resolvedValue: null,
-      });
-    }
-
-    // Check gender variants (for same athlete)
+    // Gender: always flag — an athlete cannot switch genders between results
     const genderVariants = [...new Set(recs.map(r => r.Gender))];
     if (genderVariants.length > 1) {
-      const counts = new Map<string, number>();
-      recs.forEach(r => counts.set(r.Gender, (counts.get(r.Gender) || 0) + 1));
-      const mostCommon = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-      const athleteName = nameVariants.length === 1 ? nameVariants[0] : recs[0].Athlete;
-
+      const { sorted, dominance } = countVariants(recs.map(r => r.Gender));
       tickets.push({
         id: `consistency::Gender::${normName}`,
         field: 'Gender',
-        originalValue: `${athleteName}: ${genderVariants.join(' / ')}`,
-        suggestedValue: mostCommon,
-        confidence: 50,
+        originalValue: `${athleteName}: ${sorted.map(([v, n]) => `${v} (${n}x)`).join(' / ')}`,
+        suggestedValue: sorted[0][0],
+        confidence: Math.round(dominance * 100),
         method: 'consistency',
         recordIds: recs.map(r => r._id),
         resolvedValue: null,
       });
     }
+
+    // Age class: only flag when one value clearly dominates (≥60%).
+    // A near 50/50 split could be a legitimate age-up mid-season.
+    const ageVariants = [...new Set(recs.map(r => r['Age Class']))];
+    if (ageVariants.length > 1) {
+      const { sorted, dominance } = countVariants(recs.map(r => r['Age Class']));
+      if (dominance >= 0.6) {
+        tickets.push({
+          id: `consistency::Age Class::${normName}`,
+          field: 'Age Class',
+          originalValue: `${athleteName}: ${sorted.map(([v, n]) => `${v} (${n}x)`).join(' / ')}`,
+          suggestedValue: sorted[0][0],
+          confidence: Math.round(dominance * 100),
+          method: 'consistency',
+          recordIds: recs.map(r => r._id),
+          resolvedValue: null,
+        });
+      }
+    }
   }
 
-  return tickets;
+  // Sort by confidence descending — most obvious mistakes first
+  return tickets.sort((a, b) => b.confidence - a.confidence);
 }
 
 /**
