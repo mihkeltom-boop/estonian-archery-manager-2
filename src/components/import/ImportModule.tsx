@@ -24,6 +24,7 @@ const ImportModule: React.FC<Props> = ({ onParsed, athleteRegistry }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [athleteSuggestions, setAthleteSuggestions] = useState<AthleteSuggestion[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dragCounter = useRef(0);
 
   // ── File handling ──────────────────────────────────────────────────────
 
@@ -140,28 +141,56 @@ const ImportModule: React.FC<Props> = ({ onParsed, athleteRegistry }) => {
 
   // ── Drag & drop ────────────────────────────────────────────────────────
 
+  const onDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+
+    // Check if dragging files
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      console.log('Drag enter - items:', e.dataTransfer.items.length);
+      setDragging(true);
+    }
+  };
+
   const onDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragging(true);
+    // Keep the drag effect as "copy" to show the correct cursor
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
   };
 
   const onDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragging(false);
+    dragCounter.current--;
+
+    // Only set dragging to false when we've left all nested elements
+    if (dragCounter.current === 0) {
+      setDragging(false);
+    }
   };
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    dragCounter.current = 0;
     setDragging(false);
 
     const files = e.dataTransfer.files;
     console.log('Drop event - files:', files.length);
 
+    // Log each file for debugging
+    Array.from(files).forEach((file, i) => {
+      console.log(`  File ${i + 1}: ${file.name} (${file.size} bytes, ${file.type})`);
+    });
+
     if (files && files.length > 0) {
       addFiles(files);
+    } else {
+      console.warn('No files in drop event');
     }
   };
 
@@ -180,7 +209,10 @@ const ImportModule: React.FC<Props> = ({ onParsed, athleteRegistry }) => {
 
       {/* Drop zone */}
       <div
-        onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
+        onDragEnter={onDragEnter}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
         className={`border-2 border-dashed rounded-xl p-14 text-center cursor-pointer transition-all
           ${dragging
@@ -191,14 +223,15 @@ const ImportModule: React.FC<Props> = ({ onParsed, athleteRegistry }) => {
           ref={inputRef} type="file" accept=".csv" multiple className="hidden"
           onChange={e => e.target.files && addFiles(e.target.files)}
         />
+        {/* Child elements with pointer-events-none to not interfere with drag & drop */}
         <div className="mx-auto w-14 h-14 bg-white border border-gray-200 rounded-xl
-          shadow-sm flex items-center justify-center text-3xl mb-4">
+          shadow-sm flex items-center justify-center text-3xl mb-4 pointer-events-none">
           📁
         </div>
-        <p className="text-sm font-medium text-gray-700">
+        <p className="text-sm font-medium text-gray-700 pointer-events-none">
           Drop CSV files here or <span className="text-blue-600">click to browse</span>
         </p>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-gray-400 mt-1 pointer-events-none">
           Estonian & English headers · 10 MB max · multiple files supported
         </p>
       </div>
