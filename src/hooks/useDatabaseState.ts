@@ -105,7 +105,7 @@ function applyFilters(records: CompetitionRecord[], f: FilterState): Competition
   if (f.seasonalBest) {
     const map = new Map<string, CompetitionRecord>();
     d.forEach(r => {
-      const key = `${r.Athlete}__${r['Bow Type']}`;
+      const key = `${r.Athlete}__${r['Bow Type']}__${r['Shooting Exercise']}`;
       if (!map.has(key) || r.Result > map.get(key)!.Result) map.set(key, r);
     });
     d = Array.from(map.values());

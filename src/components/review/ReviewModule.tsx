@@ -8,6 +8,7 @@ import type { CompetitionRecord } from '../../types';
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Decision = 'approve' | 'reject';
+type Phase = 'import' | 'consistency';
 
 /**
  * A grouped "issue ticket" — all records that share the same original value
@@ -78,6 +79,125 @@ function buildTickets(records: CompetitionRecord[]): IssueTicket[] {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CONSISTENCY CHECKING
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * After import issues are resolved, check if the same athlete appears with
+ * different name spellings, age classes, or genders. Group by a normalized
+ * athlete key (lowercase, trimmed) and flag inconsistencies.
+ */
+function buildConsistencyTickets(records: CompetitionRecord[]): IssueTicket[] {
+  const tickets: IssueTicket[] = [];
+
+  // Group records by normalized athlete name
+  const athleteGroups = new Map<string, CompetitionRecord[]>();
+  for (const r of records) {
+    const key = r.Athlete.trim().toLowerCase();
+    if (!athleteGroups.has(key)) athleteGroups.set(key, []);
+    athleteGroups.get(key)!.push(r);
+  }
+
+  for (const [normName, recs] of athleteGroups) {
+    if (recs.length < 2) continue;
+
+    // Check name spelling variants
+    const nameVariants = [...new Set(recs.map(r => r.Athlete))];
+    if (nameVariants.length > 1) {
+      // Suggest the most common spelling
+      const counts = new Map<string, number>();
+      recs.forEach(r => counts.set(r.Athlete, (counts.get(r.Athlete) || 0) + 1));
+      const mostCommon = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+
+      tickets.push({
+        id: `consistency::Athlete::${normName}`,
+        field: 'Athlete',
+        originalValue: nameVariants.join(' / '),
+        suggestedValue: mostCommon,
+        confidence: 50,
+        method: 'consistency',
+        recordIds: recs.map(r => r._id),
+        resolvedValue: null,
+      });
+    }
+
+    // Check age class variants (for same athlete)
+    const ageVariants = [...new Set(recs.map(r => r['Age Class']))];
+    if (ageVariants.length > 1) {
+      const counts = new Map<string, number>();
+      recs.forEach(r => counts.set(r['Age Class'], (counts.get(r['Age Class']) || 0) + 1));
+      const mostCommon = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      const athleteName = nameVariants.length === 1 ? nameVariants[0] : recs[0].Athlete;
+
+      tickets.push({
+        id: `consistency::Age Class::${normName}`,
+        field: 'Age Class',
+        originalValue: `${athleteName}: ${ageVariants.join(' / ')}`,
+        suggestedValue: mostCommon,
+        confidence: 50,
+        method: 'consistency',
+        recordIds: recs.map(r => r._id),
+        resolvedValue: null,
+      });
+    }
+
+    // Check gender variants (for same athlete)
+    const genderVariants = [...new Set(recs.map(r => r.Gender))];
+    if (genderVariants.length > 1) {
+      const counts = new Map<string, number>();
+      recs.forEach(r => counts.set(r.Gender, (counts.get(r.Gender) || 0) + 1));
+      const mostCommon = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      const athleteName = nameVariants.length === 1 ? nameVariants[0] : recs[0].Athlete;
+
+      tickets.push({
+        id: `consistency::Gender::${normName}`,
+        field: 'Gender',
+        originalValue: `${athleteName}: ${genderVariants.join(' / ')}`,
+        suggestedValue: mostCommon,
+        confidence: 50,
+        method: 'consistency',
+        recordIds: recs.map(r => r._id),
+        resolvedValue: null,
+      });
+    }
+  }
+
+  return tickets;
+}
+
+/**
+ * Apply resolved consistency fixes to records.
+ */
+function applyConsistencyFixes(
+  records: CompetitionRecord[],
+  tickets: IssueTicket[],
+  decisions: Record<string, { decision: Decision; value: string }>,
+): CompetitionRecord[] {
+  // Build a map of recordId → field fixes
+  const fixes = new Map<number, Record<string, string>>();
+
+  for (const ticket of tickets) {
+    const dec = decisions[ticket.id];
+    if (!dec || dec.decision !== 'approve') continue;
+    for (const recordId of ticket.recordIds) {
+      if (!fixes.has(recordId)) fixes.set(recordId, {});
+      fixes.get(recordId)![ticket.field] = dec.value;
+    }
+  }
+
+  return records.map(r => {
+    const f = fixes.get(r._id);
+    if (!f) return r;
+    return {
+      ...r,
+      ...(f['Athlete'] ? { Athlete: f['Athlete'] } : {}),
+      ...(f['Age Class'] ? { 'Age Class': f['Age Class'] as CompetitionRecord['Age Class'] } : {}),
+      ...(f['Gender'] ? { Gender: f['Gender'] as CompetitionRecord['Gender'] } : {}),
+    };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // TICKET CARD
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -117,11 +237,11 @@ const TicketCard: React.FC<TicketCardProps> = ({
       <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{ticket.field}</span>
-          <ConfidenceBadge value={ticket.confidence} />
-          <Badge color="gray">{ticket.method}</Badge>
+          {ticket.method !== 'consistency' && <ConfidenceBadge value={ticket.confidence} />}
+          <Badge color={ticket.method === 'consistency' ? 'yellow' : 'gray'}>{ticket.method}</Badge>
           {isBulk && (
             <Badge color="purple">
-              {ticket.recordIds.length} records share this issue
+              {ticket.recordIds.length} records affected
             </Badge>
           )}
         </div>
@@ -132,7 +252,9 @@ const TicketCard: React.FC<TicketCardProps> = ({
         {/* Original → suggested */}
         <div className="flex items-center gap-3 flex-wrap">
           <div>
-            <p className="text-xs text-gray-400 mb-1">Original value in CSV</p>
+            <p className="text-xs text-gray-400 mb-1">
+              {ticket.method === 'consistency' ? 'Inconsistent values found' : 'Original value in CSV'}
+            </p>
             <span className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-sm font-mono font-medium">
               {ticket.originalValue}
             </span>
@@ -142,7 +264,9 @@ const TicketCard: React.FC<TicketCardProps> = ({
             <p className="text-xs text-gray-400 mb-1">
               {ticket.field === 'Club'
                 ? 'Choose correct club (or type to add new)'
-                : 'Corrected value'}
+                : ticket.method === 'consistency'
+                  ? 'Select correct value for all records'
+                  : 'Corrected value'}
             </p>
             {ticket.field === 'Club' ? (
               <ClubAutocomplete
@@ -187,11 +311,11 @@ const TicketCard: React.FC<TicketCardProps> = ({
           ✓ Apply to {isBulk ? `all ${ticket.recordIds.length} records` : 'record'} (A)
         </Button>
         <Button variant="danger" onClick={onReject}>
-          ✗ Reject (R)
+          ✗ {ticket.method === 'consistency' ? 'Skip' : 'Reject'} (R)
         </Button>
         <span className="text-xs text-gray-400 ml-auto hidden sm:block">
           <kbd className="bg-gray-200 rounded px-1">A</kbd> approve &nbsp;
-          <kbd className="bg-gray-200 rounded px-1">R</kbd> reject
+          <kbd className="bg-gray-200 rounded px-1">R</kbd> {ticket.method === 'consistency' ? 'skip' : 'reject'}
         </span>
       </div>
     </Card>
@@ -199,24 +323,26 @@ const TicketCard: React.FC<TicketCardProps> = ({
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MAIN REVIEW MODULE
+// TICKET REVIEW UI (shared between phases)
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface Props {
+interface TicketReviewProps {
+  title: string;
+  subtitle: string;
+  tickets: IssueTicket[];
   records: CompetitionRecord[];
-  onComplete: (finalRecords: CompetitionRecord[]) => void;
+  onFinalise: (decisions: Record<string, { decision: Decision; value: string }>) => void;
 }
 
-const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
-  const tickets = useMemo(() => buildTickets(records), [records]);
+const TicketReview: React.FC<TicketReviewProps> = ({
+  title, subtitle, tickets, records, onFinalise,
+}) => {
   const [currentIdx, setCurrentIdx]   = useState(0);
   const [decisions, setDecisions]     = useState<Record<string, { decision: Decision; value: string }>>({});
 
   const current      = tickets[currentIdx];
   const reviewedCount = Object.keys(decisions).length;
   const isLast       = currentIdx === tickets.length - 1;
-
-  // ── Apply decision ──────────────────────────────────────────────────────
 
   const applyDecision = (decision: Decision, resolvedValue: string) => {
     const next = { ...decisions, [current.id]: { decision, value: resolvedValue } };
@@ -225,55 +351,15 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
     if (!isLast) {
       setCurrentIdx(i => i + 1);
     } else {
-      finalise(next);
+      onFinalise(next);
     }
   };
 
-  const finalise = (allDecisions: typeof decisions) => {
-    // Build a map of recordId → approved club corrections
-    const approvedFixes = new Map<number, Record<string, string>>();
-
-    for (const [ticketId, { decision, value }] of Object.entries(allDecisions)) {
-      if (decision !== 'approve') continue;
-      const ticket = tickets.find(t => t.id === ticketId);
-      if (!ticket) continue;
-      for (const recordId of ticket.recordIds) {
-        if (!approvedFixes.has(recordId)) approvedFixes.set(recordId, {});
-        approvedFixes.get(recordId)![ticket.field] = value;
-      }
-    }
-
-    // Apply fixes to records, exclude rejected-only records
-    const rejectedIds = new Set<number>();
-    for (const [ticketId, { decision }] of Object.entries(allDecisions)) {
-      if (decision !== 'reject') continue;
-      const ticket = tickets.find(t => t.id === ticketId);
-      if (ticket) ticket.recordIds.forEach(id => rejectedIds.add(id));
-    }
-
-    const finalRecords = records
-      .filter(r => !r._needsReview || !rejectedIds.has(r._id))
-      .map(r => {
-        const fixes = approvedFixes.get(r._id);
-        if (!fixes) return r;
-        return {
-          ...r,
-          ...(fixes['Club'] ? { Club: fixes['Club'] } : {}),
-          ...(fixes['Bow Type'] ? { 'Bow Type': fixes['Bow Type'] } : {}),
-        };
-      });
-
-    onComplete(finalRecords);
-  };
-
-  // ── Keyboard shortcuts ──────────────────────────────────────────────────
-
+  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!current) return;
       if ((e.target as HTMLElement).matches('input, select, textarea')) return;
-      // Approve/reject handled by active TicketCard — key events bubble up here
-      // We only handle navigation shortcuts
       if (e.key === 's' || e.key === 'S') {
         if (!isLast) setCurrentIdx(i => i + 1);
       }
@@ -282,38 +368,21 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
     return () => window.removeEventListener('keydown', handler);
   }, [current, isLast]);
 
-  // ── No flags ─────────────────────────────────────────────────────────────
-
-  if (!tickets.length) {
-    return (
-      <div className="fade-in text-center py-20 space-y-5">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-3xl mx-auto">✅</div>
-        <div>
-          <h3 className="text-xl font-bold text-gray-900">All records auto-approved!</h3>
-          <p className="text-gray-500 mt-1">Every club matched with high confidence — no review needed.</p>
-        </div>
-        <Button onClick={() => onComplete(records)} size="lg">Continue to Database →</Button>
-      </div>
-    );
-  }
-
-  // ── Summary header ────────────────────────────────────────────────────────
-
   const affectedRecordCount = new Set(tickets.flatMap(t => t.recordIds)).size;
   const approvedCount = Object.values(decisions).filter(d => d.decision === 'approve').length;
   const rejectedCount = Object.values(decisions).filter(d => d.decision === 'reject').length;
 
   return (
     <div className="space-y-6 fade-in">
-
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Review Issues</h2>
+        <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
         <p className="text-gray-500 mt-1">
           {tickets.length} unique issue{tickets.length > 1 ? 's' : ''} affecting {affectedRecordCount} records &nbsp;·&nbsp;
           {reviewedCount} reviewed &nbsp;·&nbsp;
           <span className="text-green-600">{approvedCount} approved</span> &nbsp;·&nbsp;
-          <span className="text-red-500">{rejectedCount} rejected</span>
+          <span className="text-red-500">{rejectedCount} skipped</span>
         </p>
+        {subtitle && <p className="text-sm text-blue-600 mt-2">{subtitle}</p>}
       </div>
 
       {/* Overall progress */}
@@ -369,7 +438,7 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
                 bulk[t.id] = { decision: 'approve', value: t.suggestedValue };
               });
               setDecisions(bulk);
-              finalise(bulk);
+              onFinalise(bulk);
             }}
             className="text-sm text-blue-600 hover:text-blue-800 font-medium"
           >
@@ -378,6 +447,125 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
         </div>
       )}
     </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN REVIEW MODULE
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface Props {
+  records: CompetitionRecord[];
+  onComplete: (finalRecords: CompetitionRecord[]) => void;
+}
+
+const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
+  const importTickets = useMemo(() => buildTickets(records), [records]);
+  const [phase, setPhase] = useState<Phase>('import');
+  const [intermediateRecords, setIntermediateRecords] = useState<CompetitionRecord[]>([]);
+  const [consistencyTickets, setConsistencyTickets] = useState<IssueTicket[]>([]);
+
+  // ── Phase 1: Import issue finalisation ────────────────────────────────────
+
+  const handleImportFinalise = (allDecisions: Record<string, { decision: Decision; value: string }>) => {
+    // Build a map of recordId → approved corrections
+    const approvedFixes = new Map<number, Record<string, string>>();
+
+    for (const [ticketId, { decision, value }] of Object.entries(allDecisions)) {
+      if (decision !== 'approve') continue;
+      const ticket = importTickets.find(t => t.id === ticketId);
+      if (!ticket) continue;
+      for (const recordId of ticket.recordIds) {
+        if (!approvedFixes.has(recordId)) approvedFixes.set(recordId, {});
+        approvedFixes.get(recordId)![ticket.field] = value;
+      }
+    }
+
+    // Apply fixes to records, exclude rejected-only records
+    const rejectedIds = new Set<number>();
+    for (const [ticketId, { decision }] of Object.entries(allDecisions)) {
+      if (decision !== 'reject') continue;
+      const ticket = importTickets.find(t => t.id === ticketId);
+      if (ticket) ticket.recordIds.forEach(id => rejectedIds.add(id));
+    }
+
+    const fixedRecords = records
+      .filter(r => !r._needsReview || !rejectedIds.has(r._id))
+      .map(r => {
+        const fixes = approvedFixes.get(r._id);
+        if (!fixes) return r;
+        return {
+          ...r,
+          ...(fixes['Club'] ? { Club: fixes['Club'] } : {}),
+          ...(fixes['Bow Type'] ? { 'Bow Type': fixes['Bow Type'] } : {}),
+        };
+      });
+
+    // Now run consistency check
+    transitionToConsistency(fixedRecords);
+  };
+
+  // ── Transition to consistency phase ───────────────────────────────────────
+
+  const transitionToConsistency = (recs: CompetitionRecord[]) => {
+    const cTickets = buildConsistencyTickets(recs);
+    if (cTickets.length === 0) {
+      // No inconsistencies, go straight to database
+      onComplete(recs);
+    } else {
+      setIntermediateRecords(recs);
+      setConsistencyTickets(cTickets);
+      setPhase('consistency');
+    }
+  };
+
+  // ── Phase 2: Consistency finalisation ─────────────────────────────────────
+
+  const handleConsistencyFinalise = (allDecisions: Record<string, { decision: Decision; value: string }>) => {
+    const finalRecords = applyConsistencyFixes(intermediateRecords, consistencyTickets, allDecisions);
+    onComplete(finalRecords);
+  };
+
+  // ── No import flags → skip to consistency check ───────────────────────────
+
+  if (phase === 'import' && !importTickets.length) {
+    return (
+      <div className="fade-in text-center py-20 space-y-5">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-3xl mx-auto">✅</div>
+        <div>
+          <h3 className="text-xl font-bold text-gray-900">All records auto-approved!</h3>
+          <p className="text-gray-500 mt-1">Every club matched with high confidence — no review needed.</p>
+          <p className="text-gray-500 mt-1">Click continue to check for data consistency across athletes.</p>
+        </div>
+        <Button onClick={() => transitionToConsistency(records)} size="lg">
+          Continue to Consistency Check →
+        </Button>
+      </div>
+    );
+  }
+
+  // ── Render based on phase ─────────────────────────────────────────────────
+
+  if (phase === 'consistency') {
+    return (
+      <TicketReview
+        title="Consistency Check"
+        subtitle="Checking athlete names, age classes, and genders for inconsistencies across all records."
+        tickets={consistencyTickets}
+        records={intermediateRecords}
+        onFinalise={handleConsistencyFinalise}
+      />
+    );
+  }
+
+  return (
+    <TicketReview
+      title="Review Issues"
+      subtitle=""
+      tickets={importTickets}
+      records={records}
+      onFinalise={handleImportFinalise}
+    />
   );
 };
 
