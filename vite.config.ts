@@ -14,4 +14,9 @@ export default defineConfig({
       '@constants': path.resolve(__dirname, './src/constants'),
     },
   },
+  server: {
+    host: '0.0.0.0',
+    port: 5000,
+    allowedHosts: true,
+  },
 });
