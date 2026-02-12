@@ -1,11 +1,43 @@
+import type { BowType, AgeClass, Gender, Correction } from '../types';
+import { BOW_TRANSLATIONS, ESTONIAN_HEADERS } from '../constants/clubs';
+import { getClubs } from './clubStore';
 import Papa from 'papaparse';
-import { ESTONIAN_HEADERS, ESTONIAN_CLUBS, BOW_TRANSLATIONS } from '../constants/clubs';
-import type { CompetitionRecord, BowType, AgeClass, Gender, Correction } from '../types';
+import type { CompetitionRecord } from '../types';
 
-// ── HELPERS ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// TERM STRIPPING
+// Words stripped before fuzzy matching so the algorithm focuses on the
+// distinctive part of the name, not common suffixes shared by every club.
+// Add more terms here as needed.
+// ─────────────────────────────────────────────────────────────────────────────
 
-export const sanitize = (v: unknown): string =>
-  v == null ? '' : String(v).replace(/<[^>]*>/g, '').trim();
+export const STRIP_TERMS = [
+  // Archery-specific suffixes
+  'vibuklubi', 'vibukool', 'vibu',
+  // Sports org suffixes
+  'spordiklubi', 'spordikool', 'spordikeskus', 'spordiühing', 'sportklubi',
+  // Generic club words
+  'klubi', 'kool', 'ühing', 'selts', 'liit', 'rahvaspordiklubi', 'laskurvibuklubi',
+  // Abbreviations often appended
+  'sk',
+];
+
+export const stripNoiseTerms = (input: string): string => {
+  if (!input) return '';
+  // Short strings (codes) are never stripped
+  if (input.length <= 5) return input.toLowerCase();
+  let result = input.toLowerCase();
+  for (const term of STRIP_TERMS) {
+    const regex = new RegExp(`\\b${term}\\b`, 'gi');
+    const stripped = result.replace(regex, '').replace(/\s+/g, ' ').trim();
+    if (stripped.length > 2) result = stripped;
+  }
+  return result.trim();
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVENSHTEIN
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const levenshtein = (a: string, b: string): number => {
   a = a.toLowerCase(); b = b.toLowerCase();
@@ -19,152 +51,126 @@ export const levenshtein = (a: string, b: string): number => {
   return dp[b.length][a.length];
 };
 
-// ── CLUB MATCHING ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// CLUB MATCHING
+// Strategy: exact code → exact name → stripped fuzzy → raw fuzzy
+// ─────────────────────────────────────────────────────────────────────────────
 
-export const matchClub = (input: string): { code: string; confidence: number } => {
-  if (!input) return { code: '', confidence: 0 };
+export interface ClubMatchResult {
+  code: string;
+  confidence: number;
+  method: 'exact-code' | 'exact-name' | 'fuzzy-stripped' | 'fuzzy-raw' | 'unknown';
+}
 
-  // Exact code match
-  const exact = ESTONIAN_CLUBS.find(c => c.code.toLowerCase() === input.toLowerCase());
-  if (exact) return { code: exact.code, confidence: 100 };
+export const matchClub = (input: string): ClubMatchResult => {
+  if (!input) return { code: '', confidence: 0, method: 'unknown' };
+  const clubs = getClubs(); // live list — includes user-added clubs
+  const trimmed = input.trim();
 
-  // Fuzzy match against both code and full name
-  let best = ESTONIAN_CLUBS[0];
+  const exactCode = clubs.find(c => c.code.toLowerCase() === trimmed.toLowerCase());
+  if (exactCode) return { code: exactCode.code, confidence: 100, method: 'exact-code' };
+
+  const exactName = clubs.find(c => c.name.toLowerCase() === trimmed.toLowerCase());
+  if (exactName) return { code: exactName.code, confidence: 100, method: 'exact-name' };
+
+  const strippedInput = stripNoiseTerms(trimmed);
+  let best: typeof clubs[0] | null = null;
   let bestDist = Infinity;
 
-  for (const club of ESTONIAN_CLUBS) {
-    const d = Math.min(levenshtein(input, club.code), levenshtein(input, club.name));
+  for (const club of clubs) {
+    const d = Math.min(
+      levenshtein(strippedInput, stripNoiseTerms(club.code)),
+      levenshtein(strippedInput, stripNoiseTerms(club.name)),
+      levenshtein(trimmed, club.code),
+      levenshtein(trimmed, club.name),
+    );
     if (d < bestDist) { bestDist = d; best = club; }
   }
 
-  const confidence = Math.max(
-    0,
-    Math.round((1 - bestDist / Math.max(input.length, best.code.length)) * 100)
-  );
+  if (best) {
+    const maxLen = Math.max(strippedInput.length, best.code.length, 1);
+    const confidence = Math.max(0, Math.round((1 - bestDist / maxLen) * 100));
+    const method = strippedInput !== trimmed.toLowerCase() ? 'fuzzy-stripped' : 'fuzzy-raw';
+    return { code: best.code, confidence, method };
+  }
 
-  return { code: best.code, confidence };
+  return { code: trimmed, confidence: 0, method: 'unknown' };
 };
 
-// ── BOW TYPE ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const sanitize = (v: unknown): string =>
+  v == null ? '' : String(v).replace(/<[^>]*>/g, '').trim();
 
 export const translateBowType = (raw: string): BowType => {
   if (!raw) return 'Recurve';
-  const key = raw.trim().split(/\s+/)[0].toLowerCase();
-  return BOW_TRANSLATIONS[key] ?? 'Recurve';
+  return BOW_TRANSLATIONS[raw.trim().split(/\s+/)[0].toLowerCase()] ?? 'Recurve';
 };
 
-// ── AGE CLASS ──────────────────────────────────────────────────────────────
-
 export const extractAgeClass = (ageField: string, classField: string): AgeClass => {
-  const src = ageField || classField || '';
-  const m = src.match(/U\d+|\+\d+/i);
+  const m = (ageField || classField || '').match(/U\d+|\+\d+/i);
   return (m ? m[0] : 'Adult') as AgeClass;
 };
 
-// ── GENDER ─────────────────────────────────────────────────────────────────
-
 export const extractGender = (classField: string): Gender =>
   /naised|women/i.test(classField) ? 'Women' : 'Men';
-
-// ── DISTANCE ──────────────────────────────────────────────────────────────
 
 export const normalizeDistance = (d: string): string => {
   if (!d) return '';
   const s = d.trim();
   if (/^\d+$/.test(s)) return `${s}m`;
   if (/^\d+m$/i.test(s)) return s.toLowerCase();
-  const twoX = s.match(/^2\s*[xX]\s*(\d+)/);
-  return twoX ? `2x${twoX[1]}m` : s;
+  const t = s.match(/^2\s*[xX]\s*(\d+)/);
+  return t ? `2x${t[1]}m` : s;
 };
 
-// ── HEADER NORMALISATION ───────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN PARSE
+// ─────────────────────────────────────────────────────────────────────────────
 
 const mapHeaders = (row: Record<string, string>): Record<string, string> => {
   const mapped: Record<string, string> = {};
-  for (const [k, v] of Object.entries(row)) {
-    const normalised = ESTONIAN_HEADERS[k] ?? k;
-    mapped[normalised] = v;
-  }
+  for (const [k, v] of Object.entries(row)) mapped[ESTONIAN_HEADERS[k] ?? k] = v;
   return mapped;
 };
 
-// ── MAIN PARSE FUNCTION ────────────────────────────────────────────────────
-
-export const parseCSVText = (
-  text: string,
-  sourceFile: string = ''
-): Promise<CompetitionRecord[]> =>
-  new Promise((resolve) => {
+export const parseCSVText = (text: string, sourceFile = ''): Promise<CompetitionRecord[]> =>
+  new Promise(resolve => {
     Papa.parse<Record<string, string>>(text, {
-      header: true,
-      skipEmptyLines: true,
+      header: true, skipEmptyLines: true,
       complete: ({ data }) => {
-        const records: CompetitionRecord[] = data.map((rawRow, i) => {
-          const row = mapHeaders(rawRow);
-
+        resolve(data.map((rawRow, i) => {
+          const row         = mapHeaders(rawRow);
           const date        = sanitize(row['Date'] || '');
           const athlete     = sanitize(row['Athlete'] || '');
           const clubRaw     = sanitize(row['Club'] || '');
           const bowClass    = sanitize(row['Class'] || row['Bow Type'] || '');
           const ageRaw      = sanitize(row['AgeClass'] || row['Age Class'] || '');
           const distRaw     = sanitize(row['Distance'] || row['Shooting Exercise'] || '');
-          const resultRaw   = sanitize(row['Result'] || '0');
+          const result      = parseInt(sanitize(row['Result'] || '0')) || 0;
           const competition = sanitize(row['Competition'] || '');
-
-          const clubMatch  = matchClub(clubRaw);
-          const bowType    = translateBowType(bowClass);
-          const ageClass   = extractAgeClass(ageRaw, bowClass);
-          const gender     = extractGender(bowClass);
-          const distance   = normalizeDistance(distRaw);
-          const result     = parseInt(resultRaw) || 0;
-
-          // Build correction audit trail
+          const clubMatch   = matchClub(clubRaw);
+          const bowType     = translateBowType(bowClass);
+          const ts          = Date.now();
           const corrections: Correction[] = [];
-          const ts = Date.now();
-
-          if (clubRaw && clubMatch.confidence < 100) {
-            corrections.push({
-              field: 'Club',
-              original: clubRaw,
-              corrected: clubMatch.code,
-              method: clubMatch.confidence === 100 ? 'exact' : 'fuzzy',
-              confidence: clubMatch.confidence,
-              timestamp: ts,
-            });
-          }
-
+          if (clubRaw && clubMatch.confidence < 100)
+            corrections.push({ field: 'Club', original: clubRaw, corrected: clubMatch.code,
+              method: 'fuzzy', confidence: clubMatch.confidence, timestamp: ts });
           const rawBow = bowClass.split(/\s+/)[0];
-          if (rawBow && rawBow.toLowerCase() !== bowType.toLowerCase()) {
-            corrections.push({
-              field: 'Bow Type',
-              original: rawBow,
-              corrected: bowType,
-              method: 'translation',
-              confidence: 100,
-              timestamp: ts,
-            });
-          }
-
+          if (rawBow && rawBow.toLowerCase() !== bowType.toLowerCase())
+            corrections.push({ field: 'Bow Type', original: rawBow, corrected: bowType,
+              method: 'translation', confidence: 100, timestamp: ts });
           return {
-            _id: i + 1,
-            Date: date,
-            Athlete: athlete,
-            Club: clubMatch.code,
-            'Bow Type': bowType,
-            'Age Class': ageClass,
-            Gender: gender,
-            'Shooting Exercise': distance,
-            Result: result,
-            Competition: competition,
-            _sourceFile: sourceFile,
-            _corrections: corrections,
-            _needsReview: clubMatch.confidence < 90,
-            _confidence: clubMatch.confidence,
-            _originalData: rawRow,
+            _id: i + 1, Date: date, Athlete: athlete, Club: clubMatch.code,
+            'Bow Type': bowType, 'Age Class': extractAgeClass(ageRaw, bowClass),
+            Gender: extractGender(bowClass), 'Shooting Exercise': normalizeDistance(distRaw),
+            Result: result, Competition: competition, _sourceFile: sourceFile,
+            _corrections: corrections, _needsReview: clubMatch.confidence < 90,
+            _confidence: clubMatch.confidence, _originalData: rawRow,
           };
-        });
-
-        resolve(records);
+        }));
       },
     });
   });
