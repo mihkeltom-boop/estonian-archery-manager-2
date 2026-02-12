@@ -497,7 +497,7 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
         return {
           ...r,
           ...(fixes['Club'] ? { Club: fixes['Club'] } : {}),
-          ...(fixes['Bow Type'] ? { 'Bow Type': fixes['Bow Type'] } : {}),
+          ...(fixes['Bow Type'] ? { 'Bow Type': fixes['Bow Type'] as CompetitionRecord['Bow Type'] } : {}),
         };
       });
 
