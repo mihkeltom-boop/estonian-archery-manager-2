@@ -1,6 +1,7 @@
 import type { BowType, AgeClass, Gender, Correction } from '../types';
 import { BOW_TRANSLATIONS, ESTONIAN_HEADERS } from '../constants/clubs';
 import { getClubs } from './clubStore';
+import { validateScore, getMaxScore } from './scoreValidation';
 import Papa from 'papaparse';
 import type { CompetitionRecord } from '../types';
 
@@ -198,12 +199,30 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
           const bowClass    = sanitize(row['Class'] || row['Bow Type'] || row['Vibu'] || '');
           const ageRaw      = sanitize(row['AgeClass'] || row['Age Class'] || row['Vanuserühm'] || '');
           const distRaw     = sanitize(row['Distance'] || row['Shooting Exercise'] || row['Distants'] || '');
+          const normalizedDist = normalizeDistance(distRaw);
           const result      = parseInt(sanitize(row['Result'] || row['Tulemus'] || row['Points'] || '0')) || 0;
           const competition = sanitize(row['Competition'] || row['Võistlus'] || row['competition'] || '');
           const clubMatch   = matchClub(clubRaw);
           const bowType     = translateBowType(bowClass);
           const ts          = Date.now();
           const corrections: Correction[] = [];
+
+          // Validate score against distance
+          const scoreValidation = validateScore(result, normalizedDist);
+          let needsReview = clubMatch.confidence < 90;
+
+          if (!scoreValidation.valid && scoreValidation.maxScore) {
+            corrections.push({
+              field: 'Result',
+              original: result.toString(),
+              corrected: `Max ${scoreValidation.maxScore}`,
+              method: 'extraction',
+              confidence: 0,
+              timestamp: ts
+            });
+            needsReview = true;
+          }
+
           if (clubRaw && clubMatch.confidence < 100)
             corrections.push({ field: 'Club', original: clubRaw, corrected: clubMatch.code,
               method: 'fuzzy', confidence: clubMatch.confidence, timestamp: ts });
@@ -214,9 +233,9 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
           return {
             _id: i + 1, Date: date, Athlete: athlete, Club: clubMatch.code,
             'Bow Type': bowType, 'Age Class': extractAgeClass(ageRaw, bowClass),
-            Gender: extractGender(bowClass), 'Shooting Exercise': normalizeDistance(distRaw),
+            Gender: extractGender(bowClass), 'Shooting Exercise': normalizedDist,
             Result: result, Competition: competition, _sourceFile: sourceFile,
-            _corrections: corrections, _needsReview: clubMatch.confidence < 90,
+            _corrections: corrections, _needsReview: needsReview,
             _confidence: clubMatch.confidence, _originalData: rawRow,
           };
         }));

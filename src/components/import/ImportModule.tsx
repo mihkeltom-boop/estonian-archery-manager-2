@@ -28,16 +28,28 @@ const ImportModule: React.FC<Props> = ({ onParsed, athleteRegistry }) => {
   // ── File handling ──────────────────────────────────────────────────────
 
   const addFiles = (rawFiles: FileList | File[]) => {
+    console.log('addFiles called with', rawFiles.length, 'files');
     const incoming = Array.from(rawFiles).map(f => ({
       file: f,
       error: validateFile(f).error,
     }));
+
     setSelected(prev => {
       const existing = new Set(prev.map(s => s.file.name));
-      return [...prev, ...incoming.filter(s => !existing.has(s.file.name))];
+      const newFiles = incoming.filter(s => !existing.has(s.file.name));
+      const duplicates = incoming.length - newFiles.length;
+
+      // Show feedback message
+      if (newFiles.length > 0) {
+        const msg = `Added ${newFiles.length} file${newFiles.length > 1 ? 's' : ''}${duplicates > 0 ? ` (${duplicates} duplicate${duplicates > 1 ? 's' : ''} skipped)` : ''}`;
+        console.log(msg);
+      }
+
+      return [...prev, ...newFiles];
     });
     setSuccessMessage(''); // Clear success message when adding new files
     setParseError(''); // Clear error message when adding new files
+    setAthleteSuggestions([]); // Clear athlete suggestions when adding new files
   };
 
   const removeFile = (name: string) =>
@@ -128,11 +140,29 @@ const ImportModule: React.FC<Props> = ({ onParsed, athleteRegistry }) => {
 
   // ── Drag & drop ────────────────────────────────────────────────────────
 
-  const onDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragging(true); };
-  const onDragLeave = () => setDragging(false);
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(true);
+  };
+
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(false);
+  };
+
   const onDrop = (e: React.DragEvent) => {
-    e.preventDefault(); setDragging(false);
-    addFiles(e.dataTransfer.files);
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(false);
+
+    const files = e.dataTransfer.files;
+    console.log('Drop event - files:', files.length);
+
+    if (files && files.length > 0) {
+      addFiles(files);
+    }
   };
 
   const validCount = selected.filter(s => !s.error).length;
