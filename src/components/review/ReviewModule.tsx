@@ -103,11 +103,11 @@ const TicketCard: React.FC<TicketCardProps> = ({
       // Don't trigger shortcuts when typing in input fields
       if ((e.target as HTMLElement).matches('input, select, textarea')) return;
 
-      if (e.key === 'Enter' || e.key === 'a' || e.key === 'A') {
+      if (e.key === 'Enter') {
         e.preventDefault();
         onApprove(editedValue);
       }
-      if (e.key === 'Delete' || e.key === 'r' || e.key === 'R') {
+      if (e.key === 'Delete') {
         e.preventDefault();
         onReject();
       }
@@ -206,14 +206,14 @@ const TicketCard: React.FC<TicketCardProps> = ({
       {/* Actions */}
       <div className="bg-gray-50 border-t border-gray-200 px-5 py-3.5 flex gap-3 flex-wrap items-center">
         <Button onClick={() => onApprove(editedValue)}>
-          ✓ Apply to {isBulk ? `all ${ticket.recordIds.length} records` : 'record'} (A)
+          ✓ Apply to {isBulk ? `all ${ticket.recordIds.length} records` : 'record'}
         </Button>
         <Button variant="danger" onClick={onReject}>
-          ✗ Reject (R)
+          ✗ Reject
         </Button>
         <span className="text-xs text-gray-400 ml-auto hidden sm:block">
-          <kbd className="bg-gray-200 rounded px-1">Enter</kbd> or <kbd className="bg-gray-200 rounded px-1">A</kbd> approve &nbsp;
-          <kbd className="bg-gray-200 rounded px-1">Delete</kbd> or <kbd className="bg-gray-200 rounded px-1">R</kbd> reject
+          <kbd className="bg-gray-200 rounded px-1">Enter</kbd> approve &nbsp;
+          <kbd className="bg-gray-200 rounded px-1">Delete</kbd> reject
         </span>
       </div>
     </Card>
