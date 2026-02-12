@@ -63,13 +63,27 @@ const App: React.FC = () => {
   const [reviewed, setReviewed] = useState<CompetitionRecord[]>([]);
 
   const handleParsed = (recs: CompetitionRecord[]) => {
-    setParsed(recs);
+    // Accumulate: combine new records with existing ones
+    const combined = [...parsed, ...recs];
+    // Re-sequence IDs globally
+    combined.forEach((r, i) => { r._id = i + 1; });
+    setParsed(combined);
+
     if (recs.some(r => r._needsReview)) setStep('review');
-    else { setReviewed(recs); setStep('database'); }
+    else {
+      const allReviewed = [...reviewed, ...recs];
+      allReviewed.forEach((r, i) => { r._id = i + 1; });
+      setReviewed(allReviewed);
+      setStep('database');
+    }
   };
 
   const handleReviewed = (recs: CompetitionRecord[]) => {
-    setReviewed(recs);
+    // Accumulate: combine newly reviewed records with existing ones
+    const combined = [...reviewed, ...recs];
+    // Re-sequence IDs globally
+    combined.forEach((r, i) => { r._id = i + 1; });
+    setReviewed(combined);
     setStep('database');
   };
 

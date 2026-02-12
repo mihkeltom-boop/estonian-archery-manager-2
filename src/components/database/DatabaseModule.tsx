@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, Card, Badge, StatCard, Input, Select, EmptyState } from '../common';
 import { useDatabaseState } from '../../hooks/useDatabaseState';
 import { exportToCSV, downloadCSV } from '../../utils/security';
+import { capitalizeName } from '../../utils/formatting';
 import type { CompetitionRecord, FilterState } from '../../types';
 
 // ── TABLE COLUMN DEFINITIONS ────────────────────────────────────────────────
@@ -44,9 +45,10 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
   const { state, displayed, filteredCount, hasMore, activeFilterCount, statistics, uniqueValues } = db;
 
   // Unique option lists for dropdowns
-  const clubOptions    = uniqueValues('Club').map(v => ({ value: v, label: v }));
-  const bowOptions     = uniqueValues('Bow Type').map(v => ({ value: v, label: v }));
-  const genderOptions  = ['Men', 'Women'].map(v => ({ value: v, label: v }));
+  const clubOptions     = uniqueValues('Club').map(v => ({ value: v, label: v }));
+  const bowOptions      = uniqueValues('Bow Type').map(v => ({ value: v, label: v }));
+  const distanceOptions = uniqueValues('Shooting Exercise').map(v => ({ value: v, label: v }));
+  const genderOptions   = ['Men', 'Women'].map(v => ({ value: v, label: v }));
 
   const handleExport = () => {
     const csv = exportToCSV(
@@ -93,7 +95,7 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
       <Card className="p-4 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Input
-            className="sm:col-span-2 lg:col-span-2"
+            className="sm:col-span-2"
             placeholder="🔍 Search athletes, clubs, competitions…"
             value={state.filters.searchText}
             onChange={e => db.setFilter('searchText', e.target.value)}
@@ -109,6 +111,12 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
             placeholder="All Bow Types"
             value={state.filters.bowType}
             onChange={e => db.setFilter('bowType', e.target.value)}
+          />
+          <Select
+            options={distanceOptions}
+            placeholder="All Distances"
+            value={state.filters.distance}
+            onChange={e => db.setFilter('distance', e.target.value)}
           />
         </div>
 
@@ -193,7 +201,7 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
                 displayed.map(r => (
                   <tr key={r._id} className="hover:bg-blue-50 transition-colors">
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{r.Date}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{r.Athlete}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{capitalizeName(r.Athlete)}</td>
                     <td className="px-4 py-3">
                       <Badge color="blue">{r.Club}</Badge>
                     </td>
