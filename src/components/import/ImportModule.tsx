@@ -165,11 +165,18 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
       )}
 
       {/* Actions */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-3 flex-wrap items-center">
         {validCount > 0 && (
-          <Button onClick={parseFiles} disabled={parsing} size="lg" loading={parsing}>
-            {parsing ? 'Parsing…' : `▶ Parse ${validCount} file${validCount > 1 ? 's' : ''}`}
-          </Button>
+          <>
+            <Button onClick={parseFiles} disabled={parsing} size="lg" loading={parsing}>
+              {parsing ? 'Parsing…' : `▶ Parse All ${validCount} File${validCount > 1 ? 's' : ''}`}
+            </Button>
+            {validCount > 1 && !parsing && (
+              <span className="text-xs text-gray-500">
+                All {validCount} files will be combined into one dataset
+              </span>
+            )}
+          </>
         )}
       </div>
 

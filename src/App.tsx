@@ -63,15 +63,29 @@ const App: React.FC = () => {
   const [reviewed, setReviewed] = useState<CompetitionRecord[]>([]);
 
   const handleParsed = (recs: CompetitionRecord[]) => {
+    // Deduplicate: remove records that already exist (by athlete, date, result, competition)
+    const existing = new Set(
+      parsed.map(r => `${r.Athlete}|${r.Date}|${r.Result}|${r.Competition}|${r['Shooting Exercise']}`)
+    );
+    const newRecs = recs.filter(r =>
+      !existing.has(`${r.Athlete}|${r.Date}|${r.Result}|${r.Competition}|${r['Shooting Exercise']}`)
+    );
+
     // Accumulate: combine new records with existing ones
-    const combined = [...parsed, ...recs];
+    const combined = [...parsed, ...newRecs];
     // Re-sequence IDs globally
     combined.forEach((r, i) => { r._id = i + 1; });
     setParsed(combined);
 
-    if (recs.some(r => r._needsReview)) setStep('review');
+    if (newRecs.some(r => r._needsReview)) setStep('review');
     else {
-      const allReviewed = [...reviewed, ...recs];
+      const existingReviewed = new Set(
+        reviewed.map(r => `${r.Athlete}|${r.Date}|${r.Result}|${r.Competition}|${r['Shooting Exercise']}`)
+      );
+      const newReviewed = newRecs.filter(r =>
+        !existingReviewed.has(`${r.Athlete}|${r.Date}|${r.Result}|${r.Competition}|${r['Shooting Exercise']}`)
+      );
+      const allReviewed = [...reviewed, ...newReviewed];
       allReviewed.forEach((r, i) => { r._id = i + 1; });
       setReviewed(allReviewed);
       setStep('database');
@@ -79,8 +93,16 @@ const App: React.FC = () => {
   };
 
   const handleReviewed = (recs: CompetitionRecord[]) => {
+    // Deduplicate: remove records that already exist
+    const existing = new Set(
+      reviewed.map(r => `${r.Athlete}|${r.Date}|${r.Result}|${r.Competition}|${r['Shooting Exercise']}`)
+    );
+    const newRecs = recs.filter(r =>
+      !existing.has(`${r.Athlete}|${r.Date}|${r.Result}|${r.Competition}|${r['Shooting Exercise']}`)
+    );
+
     // Accumulate: combine newly reviewed records with existing ones
-    const combined = [...reviewed, ...recs];
+    const combined = [...reviewed, ...newRecs];
     // Re-sequence IDs globally
     combined.forEach((r, i) => { r._id = i + 1; });
     setReviewed(combined);

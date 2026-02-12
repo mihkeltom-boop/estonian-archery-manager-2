@@ -185,7 +185,7 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-gray-500 font-medium">Age Class:</span>
           <div className="flex gap-1 flex-wrap">
-            {['Adult', 'U21', 'U18', 'U15', 'U13', '+50', '+60', '+70'].map(age => (
+            {['Adult', 'U21', 'U18', 'U15', 'U13', '+50', '+60'].map(age => (
               <button
                 key={age}
                 onClick={() => toggleAgeClass(age)}
@@ -249,7 +249,9 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
                     <td className="px-4 py-3 text-gray-700">{r.Gender}</td>
                     <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{r['Shooting Exercise']}</td>
                     <td className="px-4 py-3"><ResultCell value={r.Result} /></td>
-                    <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{r.Competition}</td>
+                    <td className="px-4 py-3 text-gray-500 max-w-xs">
+                      <div className="line-clamp-2">{r.Competition}</div>
+                    </td>
                   </tr>
                 ))
               )}

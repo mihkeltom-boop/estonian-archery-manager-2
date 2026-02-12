@@ -126,8 +126,17 @@ export const translateBowType = (raw: string): BowType => {
 };
 
 export const extractAgeClass = (ageField: string, classField: string): AgeClass => {
-  const m = (ageField || classField || '').match(/U\d+|\+\d+/i);
-  return (m ? m[0] : 'Adult') as AgeClass;
+  const combined = `${ageField || ''} ${classField || ''}`.toUpperCase();
+
+  // Match age class patterns (U21, U18, etc.)
+  if (/U21/i.test(combined)) return 'U21';
+  if (/U18/i.test(combined)) return 'U18';
+  if (/U15/i.test(combined)) return 'U15';
+  if (/U13/i.test(combined)) return 'U13';
+  if (/\+60|\+70/i.test(combined)) return '+60';  // Normalize +70 to +60
+  if (/\+50/i.test(combined)) return '+50';
+
+  return 'Adult';
 };
 
 export const extractGender = (classField: string): Gender =>
