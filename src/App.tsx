@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import ImportModule from './components/import/ImportModule';
 import ReviewModule from './components/review/ReviewModule';
 import DatabaseModule from './components/database/DatabaseModule';
 import ClubManager from './components/common/ClubManager';
 import { Badge } from './components/common';
+import { AthleteRegistry } from './utils/athleteRegistry';
 import type { CompetitionRecord, Step } from './types';
 
 type AppStep = Step | 'clubs';
@@ -61,6 +62,7 @@ const App: React.FC = () => {
   const [step, setStep]         = useState<AppStep>('import');
   const [parsed, setParsed]     = useState<CompetitionRecord[]>([]);
   const [reviewed, setReviewed] = useState<CompetitionRecord[]>([]);
+  const athleteRegistryRef = useRef(new AthleteRegistry());
 
   const handleParsed = (recs: CompetitionRecord[]) => {
     // Deduplicate: remove records that already exist (by athlete, date, result, competition)
@@ -70,6 +72,9 @@ const App: React.FC = () => {
     const newRecs = recs.filter(r =>
       !existing.has(`${r.Athlete}|${r.Date}|${r.Result}|${r.Competition}|${r['Shooting Exercise']}`)
     );
+
+    // Update athlete registry with new records
+    newRecs.forEach(rec => athleteRegistryRef.current.addOrUpdateFromRecord(rec));
 
     // Accumulate: combine new records with existing ones
     const combined = [...parsed, ...newRecs];
@@ -137,7 +142,7 @@ const App: React.FC = () => {
       />
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
-        {step === 'import'   && <ImportModule onParsed={handleParsed} />}
+        {step === 'import'   && <ImportModule onParsed={handleParsed} athleteRegistry={athleteRegistryRef.current} />}
         {step === 'review'   && <ReviewModule records={parsed} onComplete={handleReviewed} />}
         {step === 'database' && <DatabaseModule records={reviewed} />}
         {step === 'clubs'    && (

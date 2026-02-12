@@ -59,3 +59,13 @@ export interface FileValidationResult {
   valid: boolean;
   error?: string;
 }
+
+// ── ATHLETE REGISTRY ───────────────────────────────────────────────────────
+
+export type {
+  Athlete,
+  AthleteMatch,
+  AthleteSuggestion,
+  AgeGroupCategory
+} from './athlete';
+export { AGE_GROUP_CATEGORIES, getDisplayAgeGroup } from './athlete';

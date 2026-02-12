@@ -2,10 +2,12 @@ import React, { useState, useRef } from 'react';
 import { Button, Card, ProgressBar } from '../common';
 import { parseCSVText } from '../../utils/parsing';
 import { validateFile, downloadCSV } from '../../utils/security';
-import type { CompetitionRecord } from '../../types';
+import { AthleteRegistry, parseAthleteName } from '../../utils/athleteRegistry';
+import { getDisplayAgeGroup, type AthleteSuggestion, type CompetitionRecord } from '../../types';
 
 interface Props {
   onParsed: (records: CompetitionRecord[]) => void;
+  athleteRegistry: AthleteRegistry;
 }
 
 interface SelectedFile {
@@ -13,13 +15,14 @@ interface SelectedFile {
   error?: string;
 }
 
-const ImportModule: React.FC<Props> = ({ onParsed }) => {
+const ImportModule: React.FC<Props> = ({ onParsed, athleteRegistry }) => {
   const [selected, setSelected]   = useState<SelectedFile[]>([]);
   const [dragging, setDragging]   = useState(false);
   const [parsing, setParsing]     = useState(false);
   const [progress, setProgress]   = useState(0);
   const [parseError, setParseError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [athleteSuggestions, setAthleteSuggestions] = useState<AthleteSuggestion[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // ── File handling ──────────────────────────────────────────────────────
@@ -46,15 +49,39 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
     const valid = selected.filter(s => !s.error);
     if (!valid.length) return;
 
-    setParsing(true); setProgress(5); setParseError(''); setSuccessMessage('');
+    setParsing(true); setProgress(5); setParseError(''); setSuccessMessage(''); setAthleteSuggestions([]);
 
     try {
       const all: CompetitionRecord[] = [];
+      const suggestions: AthleteSuggestion[] = [];
+      const seenNames = new Set<string>(); // Track names we've already checked
 
       for (let i = 0; i < valid.length; i++) {
         const { file } = valid[i];
         const text = await file.text();
         const records = await parseCSVText(text, file.name);
+
+        // Check each record for potential name typos
+        records.forEach(record => {
+          const { firstName, lastName } = parseAthleteName(record.Athlete);
+          const nameKey = `${firstName}|${lastName}`;
+
+          // Only check if we haven't seen this name yet in this batch
+          if (!seenNames.has(nameKey)) {
+            seenNames.add(nameKey);
+
+            // Check for similar athletes in registry
+            const match = athleteRegistry.findBestMatch(firstName, lastName);
+            if (match && match.matchType === 'typo') {
+              suggestions.push({
+                originalName: record.Athlete,
+                match,
+                status: 'pending'
+              });
+            }
+          }
+        });
+
         all.push(...records);
         setProgress(Math.round(((i + 1) / valid.length) * 90) + 5);
       }
@@ -65,7 +92,15 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
 
       const fileCount = valid.length;
       const recordCount = all.length;
-      setSuccessMessage(`✓ Successfully parsed ${fileCount} file${fileCount > 1 ? 's' : ''} → ${recordCount} records added`);
+      const uniqueAthletes = seenNames.size;
+
+      // Show suggestions if found
+      if (suggestions.length > 0) {
+        setAthleteSuggestions(suggestions);
+        setSuccessMessage(`✓ Parsed ${fileCount} file${fileCount > 1 ? 's' : ''} → ${recordCount} records, ${uniqueAthletes} athletes (${suggestions.length} potential typo${suggestions.length > 1 ? 's' : ''} found)`);
+      } else {
+        setSuccessMessage(`✓ Successfully parsed ${fileCount} file${fileCount > 1 ? 's' : ''} → ${recordCount} records, ${uniqueAthletes} athletes`);
+      }
 
       setTimeout(() => {
         setParsing(false);
@@ -198,6 +233,77 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
           {parseError}
         </div>
+      )}
+
+      {/* Athlete name suggestions */}
+      {athleteSuggestions.length > 0 && (
+        <Card>
+          <div className="px-4 py-3 border-b border-gray-100 bg-yellow-50">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⚠️</span>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  Potential Name Typos Detected
+                </p>
+                <p className="text-xs text-gray-600">
+                  Found {athleteSuggestions.length} name{athleteSuggestions.length > 1 ? 's' : ''} similar to existing athletes (1 letter difference)
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {athleteSuggestions.map((suggestion, idx) => {
+              const match = suggestion.match;
+              const athlete = match.athlete;
+
+              // Get age groups for display
+              const currentYear = new Date().getFullYear();
+              const ageGroups = athlete.ageGroupsByYear.get(currentYear) || new Set();
+              const youthTag = getDisplayAgeGroup(ageGroups, 'youth');
+              const seniorTag = getDisplayAgeGroup(ageGroups, 'senior');
+
+              return (
+                <div key={idx} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium text-gray-900">
+                          "{suggestion.originalName}"
+                        </span>
+                        <span className="text-gray-400">→</span>
+                        <span className="text-sm font-semibold text-blue-600">
+                          {athlete.fullName}
+                        </span>
+                        {youthTag && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                            {youthTag}
+                          </span>
+                        )}
+                        {seniorTag && (
+                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                            {seniorTag}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Existing: {athlete.club} · {Array.from(athlete.competitionClasses).join(', ')}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {match.distance} letter{match.distance > 1 ? 's' : ''} different
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
+            <p className="text-xs text-gray-600">
+              💡 These are informational only. Records have been imported as-is.
+              The athlete registry will track both variants unless you manually merge them later.
+            </p>
+          </div>
+        </Card>
       )}
 
       {/* Actions */}
