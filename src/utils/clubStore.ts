@@ -44,10 +44,15 @@ function loadFromStorage(): Club[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [...BUILT_IN_CLUBS];
     const stored: Club[] = JSON.parse(raw);
-    // Merge: built-ins first (preserved), then any user-added ones
-    const codes = new Set(stored.map(c => c.code));
-    const missing = BUILT_IN_CLUBS.filter(c => !codes.has(c.code));
-    return [...missing, ...stored];
+
+    // Create a map of built-in club codes for fast lookup
+    const builtInCodes = new Set(BUILT_IN_CLUBS.map(c => c.code));
+
+    // Keep only user-added clubs from storage (clubs not in BUILT_IN_CLUBS)
+    const userAddedClubs = stored.filter(c => c.userAdded && !builtInCodes.has(c.code));
+
+    // Always use fresh BUILT_IN_CLUBS (ensures names are always up-to-date)
+    return [...BUILT_IN_CLUBS, ...userAddedClubs];
   } catch {
     return [...BUILT_IN_CLUBS];
   }
