@@ -3,12 +3,12 @@ import type { BowType, AgeClass } from '../types';
 // ── CLUBS ──────────────────────────────────────────────────────────────────
 
 export const ESTONIAN_CLUBS = [
-  { code: 'TLVK', name: 'Tallinna Laskurvibuklubi' },
-  { code: 'VVVK', name: 'Viljandi Vibukool' },
-  { code: 'SAG',  name: 'Tallinna SK' },
+  { code: 'TLVK', name: 'Tallinna Vibukool' },
+  { code: 'VVVK', name: 'Vana Võidu Vibuklubi' },
+  { code: 'SAG',  name: 'Vibuklubi Sagittarius' },
   { code: 'TVSK', name: 'Tapa' },
-  { code: 'JVI',  name: 'Jõhvi' },
-  { code: 'PVM',  name: 'Põlva-Võru-Maardu' },
+  { code: 'JVI',  name: 'Järvakandi Ilves' },
+  { code: 'PVM',  name: 'Pärnu Vibuklubi' },
   { code: 'KSK',  name: 'Keila SK' },
   { code: 'SJK',  name: 'Sindi Jõuklubi' },
   { code: 'STR',  name: 'Silla-Tare Rahvaspordiklubi' },
@@ -20,8 +20,7 @@ export const ESTONIAN_CLUBS = [
   { code: 'VVK',  name: 'Valga Vibukool' },
   { code: 'SVK',  name: 'Saku Vibukool' },
   { code: 'TL',   name: 'Tiit Laasberg' },
-  { code: 'AMA',  name: 'Amatöör' },
-  { code: 'NS',   name: 'NS' },
+  { code: 'NS',   name: 'NS Archery Club' },
 ] as const;
 
 // ── HEADER MAPPINGS ────────────────────────────────────────────────────────
@@ -45,8 +44,8 @@ export const BOW_TRANSLATIONS: Record<string, BowType> = {
   // Estonian → English
   'sportvibu':         'Recurve',
   'plokkvibu':         'Compound',
-  'traditsioonivibu':  'Barebow',
-  'pikavibu':          'Longbow',
+  'vaistuvibu':         'Barebow',
+  'pikkvibu':          'Longbow',
   // English passthrough (case-insensitive)
   'recurve':           'Recurve',
   'compound':          'Compound',
