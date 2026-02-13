@@ -122,7 +122,9 @@ function autoFixAgeClasses(records: CompetitionRecord[]): CompetitionRecord[] {
   // Group by normalized athlete name + year
   const groups = new Map<string, CompetitionRecord[]>();
   for (const r of records) {
-    const key = `${r.Athlete.trim().toLowerCase()}__${extractYear(r.Date)}`;
+    const name = r.Athlete.trim();
+    if (!name) continue; // Skip records with no athlete name
+    const key = `${name.toLowerCase()}__${extractYear(r.Date)}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(r);
   }
@@ -189,7 +191,9 @@ function buildConsistencyTickets(records: CompetitionRecord[]): IssueTicket[] {
   // Group records by normalized athlete name
   const athleteGroups = new Map<string, CompetitionRecord[]>();
   for (const r of records) {
-    const key = r.Athlete.trim().toLowerCase();
+    const name = r.Athlete.trim();
+    if (!name) continue; // Skip records with no athlete name
+    const key = name.toLowerCase();
     if (!athleteGroups.has(key)) athleteGroups.set(key, []);
     athleteGroups.get(key)!.push(r);
   }

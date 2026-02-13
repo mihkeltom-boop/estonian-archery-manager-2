@@ -114,8 +114,13 @@ export const extractAgeClass = (ageField: string, classField: string): AgeClass 
   return (m ? m[0] : 'Adult') as AgeClass;
 };
 
-export const extractGender = (classField: string): Gender =>
-  /naised|women/i.test(classField) ? 'Women' : 'Men';
+export const extractGender = (genderField: string, classField: string): Gender => {
+  if (genderField) {
+    if (/naised|women|naine|female|^n$/i.test(genderField.trim())) return 'Women';
+    if (/mehed|men|mees|male|^m$/i.test(genderField.trim())) return 'Men';
+  }
+  return /naised|women/i.test(classField) ? 'Women' : 'Men';
+};
 
 export const normalizeDistance = (d: string): string => {
   if (!d) return '';
@@ -147,6 +152,7 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
           const athlete     = sanitize(row['Athlete'] || '');
           const clubRaw     = sanitize(row['Club'] || '');
           const bowClass    = sanitize(row['Class'] || row['Bow Type'] || '');
+          const genderRaw   = sanitize(row['Gender'] || '');
           const ageRaw      = sanitize(row['AgeClass'] || row['Age Class'] || '');
           const distRaw     = sanitize(row['Distance'] || row['Shooting Exercise'] || '');
           const result      = parseInt(sanitize(row['Result'] || '0')) || 0;
@@ -165,7 +171,7 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
           return {
             _id: i + 1, Date: date, Athlete: athlete, Club: clubMatch.code,
             'Bow Type': bowType, 'Age Class': extractAgeClass(ageRaw, bowClass),
-            Gender: extractGender(bowClass), 'Shooting Exercise': normalizeDistance(distRaw),
+            Gender: extractGender(genderRaw, bowClass), 'Shooting Exercise': normalizeDistance(distRaw),
             Result: result, Competition: competition, _sourceFile: sourceFile,
             _corrections: corrections, _needsReview: clubMatch.confidence < 90,
             _confidence: clubMatch.confidence, _originalData: rawRow,
