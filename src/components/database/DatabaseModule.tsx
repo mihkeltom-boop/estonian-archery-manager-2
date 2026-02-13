@@ -62,7 +62,8 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
   const { state, displayed, filteredCount, hasMore, activeFilterCount, statistics, uniqueValues } = db;
 
   // Unique option lists for dropdowns
-  const clubOptions    = uniqueValues('Club').map(v => ({ value: v, label: v }));
+  const clubOptions      = uniqueValues('Club').map(v => ({ value: v, label: v }));
+  const distanceOptions  = uniqueValues('Shooting Exercise').map(v => ({ value: v, label: v }));
 
   const handleExport = () => {
     const csv = exportToCSV(
@@ -114,38 +115,29 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
           onChange={e => db.setFilter('searchText', e.target.value)}
         />
 
-        {/* Row 2: Club dropdown (small) */}
-        <div className="max-w-xs">
-          <Select
-            options={clubOptions}
-            placeholder="All Clubs"
-            value={state.filters.club}
-            onChange={e => db.setFilter('club', e.target.value)}
-          />
+        {/* Row 2: Distance + Club dropdowns */}
+        <div className="flex gap-3 flex-wrap">
+          <div className="w-40">
+            <Select
+              options={distanceOptions}
+              placeholder="All Distances"
+              value={state.filters.distance}
+              onChange={e => db.setFilter('distance', e.target.value)}
+            />
+          </div>
+          <div className="w-40">
+            <Select
+              options={clubOptions}
+              placeholder="All Clubs"
+              value={state.filters.club}
+              onChange={e => db.setFilter('club', e.target.value)}
+            />
+          </div>
         </div>
 
         {/* Row 3: Pill filters */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-4 flex-wrap">
-
-            {/* Distance pills */}
-            <div className="flex gap-1 flex-wrap">
-              {['', ...uniqueValues('Shooting Exercise')].map(d => (
-                <button
-                  key={d}
-                  onClick={() => db.setFilter('distance', d)}
-                  className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
-                    state.filters.distance === d
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {d || 'All Distances'}
-                </button>
-              ))}
-            </div>
-
-            <div className="w-px h-6 bg-gray-200" />
 
             {/* Gender pills */}
             <div className="flex gap-1">

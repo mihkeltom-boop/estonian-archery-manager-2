@@ -85,12 +85,12 @@ const App: React.FC = () => {
               <h1 className="font-bold text-gray-900 leading-tight text-sm sm:text-base">
                 Estonian Archery Data Manager
               </h1>
-              <p className="text-xs text-gray-400">Competition data management · v2.0</p>
+              <p className="text-xs text-gray-400">Competition data management · v2.0.1</p>
             </div>
           </div>
           <div className="hidden sm:flex gap-2">
             <Badge color="blue">🇪🇪 Estonian</Badge>
-            <Badge color="green">v2.0</Badge>
+            <Badge color="green">v2.0.1</Badge>
           </div>
         </div>
       </header>

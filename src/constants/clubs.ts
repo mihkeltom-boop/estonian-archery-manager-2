@@ -29,6 +29,9 @@ export const ESTONIAN_CLUBS = [
 export const ESTONIAN_HEADERS: Record<string, string> = {
   'Kuupäev':       'Date',
   'Sportlane':     'Athlete',
+  'Nimi':           'Athlete',
+  'Sportlase nimi': 'Athlete',
+  'Võistleja':     'Athlete',
   'Võistlus':      'Competition',
   'Klubi':         'Club',
   'Võistlusklass': 'Class',
@@ -36,6 +39,7 @@ export const ESTONIAN_HEADERS: Record<string, string> = {
   'Distants':      'Distance',
   'Tulemus':       'Result',
   'Vanuseklass':   'AgeClass',
+  'Sugu':          'Gender',
 };
 
 // ── BOW TYPE TRANSLATIONS ──────────────────────────────────────────────────
