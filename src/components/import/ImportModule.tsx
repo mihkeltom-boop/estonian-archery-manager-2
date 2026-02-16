@@ -3,6 +3,7 @@ import { Button, Card, ProgressBar } from '../common';
 import { parseCSVText } from '../../utils/parsing';
 import { validateFile } from '../../utils/security';
 import { SAMPLE_CSV } from '../../constants/clubs';
+import { showToast } from '../common/Toast';
 import type { CompetitionRecord } from '../../types';
 
 interface Props {
@@ -64,7 +65,9 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
 
     } catch (err) {
       setParsing(false);
-      setParseError(err instanceof Error ? err.message : 'Unexpected parsing error');
+      const msg = err instanceof Error ? err.message : 'Unexpected parsing error';
+      setParseError(msg);
+      showToast('error', msg);
     }
   };
 

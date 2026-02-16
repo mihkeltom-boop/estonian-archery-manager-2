@@ -1,6 +1,7 @@
 import type { BowType, AgeClass, Gender, Correction } from '../types';
 import { BOW_TRANSLATIONS, ESTONIAN_HEADERS } from '../constants/clubs';
 import { getClubs } from './clubStore';
+import { capitalizeWords, formatDate } from './formatting';
 import Papa from 'papaparse';
 import type { CompetitionRecord } from '../types';
 
@@ -148,8 +149,8 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
       complete: ({ data }) => {
         resolve(data.map((rawRow, i) => {
           const row         = mapHeaders(rawRow);
-          const date        = sanitize(row['Date'] || '');
-          const athlete     = sanitize(row['Athlete'] || '');
+          const date        = formatDate(sanitize(row['Date'] || ''));
+          const athlete     = capitalizeWords(sanitize(row['Athlete'] || ''));
           const clubRaw     = sanitize(row['Club'] || '');
           const bowClass    = sanitize(row['Class'] || row['Bow Type'] || '');
           const genderRaw   = sanitize(row['Gender'] || '');

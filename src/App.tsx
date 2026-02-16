@@ -5,6 +5,7 @@ import DatabaseModule from './components/database/DatabaseModule';
 import LogsModule from './components/logs/LogsModule';
 import ClubManager from './components/common/ClubManager';
 import { Badge } from './components/common';
+import { ToastContainer, showToast } from './components/common/Toast';
 import type { CompetitionRecord, Step } from './types';
 
 type AppStep = Step | 'clubs';
@@ -66,17 +67,26 @@ const App: React.FC = () => {
 
   const handleParsed = (recs: CompetitionRecord[]) => {
     setParsed(recs);
-    if (recs.some(r => r._needsReview)) setStep('review');
-    else { setReviewed(recs); setStep('database'); }
+    const needsReview = recs.filter(r => r._needsReview).length;
+    if (needsReview > 0) {
+      showToast('info', `Parsed ${recs.length} records — ${needsReview} need review`);
+      setStep('review');
+    } else {
+      showToast('success', `Imported ${recs.length} records with no issues`);
+      setReviewed(recs);
+      setStep('database');
+    }
   };
 
   const handleReviewed = (recs: CompetitionRecord[]) => {
+    showToast('success', `Review complete — ${recs.length} records ready`);
     setReviewed(recs);
     setStep('database');
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      <ToastContainer />
       <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">

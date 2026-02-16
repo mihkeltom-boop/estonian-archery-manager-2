@@ -2,6 +2,8 @@ import React from 'react';
 import { Button, Card, Badge, StatCard, Input, Select, EmptyState } from '../common';
 import { useDatabaseState } from '../../hooks/useDatabaseState';
 import { exportToCSV, downloadCSV } from '../../utils/security';
+import { showToast } from '../common/Toast';
+import { formatNumber } from '../../utils/formatting';
 import type { CompetitionRecord, FilterState } from '../../types';
 
 // ── TABLE COLUMN DEFINITIONS ────────────────────────────────────────────────
@@ -42,7 +44,7 @@ const ResultCell: React.FC<{ value: number }> = ({ value }) => (
   <span className={`font-bold tabular-nums ${
     value >= 600 ? 'text-green-600' : value >= 500 ? 'text-blue-600' : 'text-gray-700'
   }`}>
-    {value}
+    {formatNumber(value)}
   </span>
 );
 
@@ -71,6 +73,7 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
       COLUMNS.map(c => ({ key: c.key, label: c.label }))
     );
     downloadCSV(csv, `archery-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('success', `Exported ${displayed.length} records to CSV`);
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -98,12 +101,12 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
 
       {/* Statistics */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard label="Records"      value={statistics.total.toLocaleString()} emoji="📊" color="blue" />
-        <StatCard label="Athletes"     value={statistics.athletes}               emoji="🏹" color="purple" />
-        <StatCard label="Clubs"        value={statistics.clubs}                  emoji="🏛️" color="teal" />
-        <StatCard label="Competitions" value={statistics.competitions}           emoji="🏆" color="orange" />
-        <StatCard label="Avg Result"   value={statistics.avgResult || '—'}       emoji="📈" color="green" />
-        <StatCard label="Best Score"   value={statistics.bestResult || '—'}      emoji="⭐" color="orange" />
+        <StatCard label="Records"      value={formatNumber(statistics.total)}                      emoji="📊" color="blue" />
+        <StatCard label="Athletes"     value={formatNumber(statistics.athletes)}                    emoji="🏹" color="purple" />
+        <StatCard label="Clubs"        value={formatNumber(statistics.clubs)}                       emoji="🏛️" color="teal" />
+        <StatCard label="Competitions" value={formatNumber(statistics.competitions)}                emoji="🏆" color="orange" />
+        <StatCard label="Avg Result"   value={statistics.avgResult ? formatNumber(statistics.avgResult) : '—'} emoji="📈" color="green" />
+        <StatCard label="Best Score"   value={statistics.bestResult ? formatNumber(statistics.bestResult) : '—'} emoji="⭐" color="orange" />
       </div>
 
       {/* Filters */}
