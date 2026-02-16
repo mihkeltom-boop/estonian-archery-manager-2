@@ -60,7 +60,7 @@ export const levenshtein = (a: string, b: string): number => {
 export interface ClubMatchResult {
   code: string;
   confidence: number;
-  method: 'exact-code' | 'exact-name' | 'fuzzy-stripped' | 'fuzzy-raw' | 'unknown';
+  method: 'exact-code' | 'exact-name' | 'short-code' | 'fuzzy-stripped' | 'fuzzy-raw' | 'unknown';
 }
 
 export const matchClub = (input: string): ClubMatchResult => {
@@ -73,6 +73,16 @@ export const matchClub = (input: string): ClubMatchResult => {
 
   const exactName = clubs.find(c => c.name.toLowerCase() === trimmed.toLowerCase());
   if (exactName) return { code: exactName.code, confidence: 100, method: 'exact-name' };
+
+  // Check for 2-4 letter club shortened codes (auto-accept if unique prefix match)
+  if (trimmed.length >= 2 && trimmed.length <= 4) {
+    const prefixMatches = clubs.filter(c =>
+      c.code.toLowerCase().startsWith(trimmed.toLowerCase())
+    );
+    if (prefixMatches.length === 1) {
+      return { code: prefixMatches[0].code, confidence: 95, method: 'short-code' };
+    }
+  }
 
   const strippedInput = stripNoiseTerms(trimmed);
   let best: typeof clubs[0] | null = null;

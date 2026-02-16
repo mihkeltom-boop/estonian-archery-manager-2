@@ -503,21 +503,8 @@ const TicketReview: React.FC<TicketReviewProps> = ({
         </div>
       )}
 
-      {/* Already-decided tickets (collapsed summary) */}
-      {reviewedCount > 0 && (
-        <div className="space-y-2">
-          {tickets.slice(0, currentIdx).map(ticket => (
-            <TicketCard
-              key={ticket.id}
-              ticket={{ ...ticket, resolvedValue: decisions[ticket.id]?.value ?? null }}
-              affectedRecords={records.filter(r => ticket.recordIds.includes(r._id))}
-              decision={decisions[ticket.id]?.decision ?? null}
-              onApprove={() => {}}
-              onReject={() => {}}
-            />
-          ))}
-        </div>
-      )}
+      {/* Already-decided tickets (collapsed summary) - Hidden per user request */}
+      {/* Solved tickets are no longer displayed in the review tab */}
 
       {/* Active ticket */}
       {current && (
