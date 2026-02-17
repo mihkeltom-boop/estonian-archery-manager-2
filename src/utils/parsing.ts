@@ -2,7 +2,7 @@ import type { BowType, AgeClass, Gender, Correction } from '../types';
 import { BOW_TRANSLATIONS, ESTONIAN_HEADERS } from '../constants/clubs';
 import { getClubs } from './clubStore';
 import { capitalizeWords, formatDate } from './formatting';
-import { validateScore, isSuspiciouslyHigh } from './scoreValidation';
+import { validateScore } from './scoreValidation';
 import Papa from 'papaparse';
 import type { CompetitionRecord } from '../types';
 
@@ -186,7 +186,7 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
             corrections.push({ field: 'Bow Type', original: rawBow, corrected: bowType,
               method: 'translation', confidence: 100, timestamp: ts });
 
-          // Score validation
+          // Score validation — only flag when result exceeds the maximum or is 0
           const scoreValidation = validateScore(result, distance);
           let needsReview = clubMatch.confidence < 90;
 
@@ -200,14 +200,13 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
               timestamp: ts,
             });
             needsReview = true;
-          } else if (result > 0 && isSuspiciouslyHigh(result, distance)) {
-            // Flag suspiciously high scores for review (but don't block them)
+          } else if (result === 0) {
             corrections.push({
               field: 'Result',
-              original: String(result),
-              corrected: `High score (max: ${scoreValidation.maxScore})`,
+              original: '0',
+              corrected: 'Score is 0',
               method: 'validation',
-              confidence: 75,
+              confidence: 0,
               timestamp: ts,
             });
             needsReview = true;

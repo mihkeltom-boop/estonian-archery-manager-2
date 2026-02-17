@@ -160,6 +160,16 @@ export function useDatabaseState(initial: CompetitionRecord[] = []) {
     [state.records]
   );
 
+  /** Unique field values sorted by descending frequency (most records first) */
+  const uniqueValuesByCount = useCallback((field: keyof CompetitionRecord): string[] => {
+    const counts = new Map<string, number>();
+    for (const r of state.records) {
+      const v = String(r[field] ?? '');
+      if (v) counts.set(v, (counts.get(v) || 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([v]) => v);
+  }, [state.records]);
+
   return {
     state,
     displayed,
@@ -168,6 +178,7 @@ export function useDatabaseState(initial: CompetitionRecord[] = []) {
     activeFilterCount,
     statistics,
     uniqueValues,
+    uniqueValuesByCount,
     setRecords:   (records: CompetitionRecord[]) => dispatch({ type: 'SET_RECORDS', payload: records }),
     updateRecord: (id: number, updates: Partial<CompetitionRecord>) => dispatch({ type: 'UPDATE_RECORD', payload: { id, updates } }),
     deleteRecord: (id: number) => dispatch({ type: 'DELETE_RECORD', payload: id }),

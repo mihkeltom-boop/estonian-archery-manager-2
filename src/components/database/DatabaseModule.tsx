@@ -41,9 +41,7 @@ const GENDER_COLOR: Record<string, 'blue' | 'purple'> = {
 // ── RESULT CELL ─────────────────────────────────────────────────────────────
 
 const ResultCell: React.FC<{ value: number }> = ({ value }) => (
-  <span className={`font-bold tabular-nums ${
-    value >= 600 ? 'text-green-600' : value >= 500 ? 'text-blue-600' : 'text-gray-700'
-  }`}>
+  <span className="font-bold tabular-nums text-gray-900">
     {formatNumber(value)}
   </span>
 );
@@ -61,11 +59,11 @@ interface Props {
 
 const DatabaseModule: React.FC<Props> = ({ records }) => {
   const db = useDatabaseState(records);
-  const { state, displayed, filteredCount, hasMore, activeFilterCount, statistics, uniqueValues } = db;
+  const { state, displayed, filteredCount, hasMore, activeFilterCount, statistics, uniqueValues, uniqueValuesByCount } = db;
 
   // Unique option lists for dropdowns
   const clubOptions      = uniqueValues('Club').map(v => ({ value: v, label: v }));
-  const distanceOptions  = uniqueValues('Shooting Exercise').map(v => ({ value: v, label: v }));
+  const distanceOptions  = uniqueValuesByCount('Shooting Exercise').map(v => ({ value: v, label: v }));
 
   const handleExport = () => {
     const csv = exportToCSV(
@@ -174,6 +172,25 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
                   }`}
                 >
                   {bt || 'All Bow Types'}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-px h-6 bg-gray-200" />
+
+            {/* Age Class pills */}
+            <div className="flex gap-1 flex-wrap">
+              {['', ...uniqueValues('Age Class')].map(ac => (
+                <button
+                  key={ac}
+                  onClick={() => db.setFilter('ageClass', ac)}
+                  className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                    state.filters.ageClass === ac
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {ac || 'All Ages'}
                 </button>
               ))}
             </div>
