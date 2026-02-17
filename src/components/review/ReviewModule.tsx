@@ -195,28 +195,38 @@ function buildConsistencyTickets(records: CompetitionRecord[]): IssueTicket[] {
 function applyConsistencyFixes(
   records: CompetitionRecord[],
   tickets: IssueTicket[],
-  decisions: Record<string, { decision: Decision; value: string }>,
+  decisions: Record<string, DecisionEntry>,
 ): CompetitionRecord[] {
   const fixes = new Map<number, Record<string, string>>();
 
   for (const ticket of tickets) {
     const dec = decisions[ticket.id];
     if (!dec || dec.decision !== 'approve') continue;
+
+    // Issue field fix → all records in ticket
     for (const recordId of ticket.recordIds) {
       if (!fixes.has(recordId)) fixes.set(recordId, {});
       fixes.get(recordId)![ticket.field] = dec.value;
+    }
+
+    // Other field edits → representative (first) record only
+    if (dec.fieldEdits) {
+      const repId = ticket.recordIds[0];
+      if (!fixes.has(repId)) fixes.set(repId, {});
+      for (const [f, v] of Object.entries(dec.fieldEdits)) {
+        if (f !== ticket.field) fixes.get(repId)![f] = v;
+      }
     }
   }
 
   return records.map(r => {
     const f = fixes.get(r._id);
     if (!f) return r;
-    return {
-      ...r,
-      ...(f['Athlete'] ? { Athlete: f['Athlete'] } : {}),
-      ...(f['Age Class'] ? { 'Age Class': f['Age Class'] as CompetitionRecord['Age Class'] } : {}),
-      ...(f['Gender'] ? { Gender: f['Gender'] as CompetitionRecord['Gender'] } : {}),
-    };
+    const updated: any = { ...r };
+    for (const [field, val] of Object.entries(f)) {
+      updated[field] = field === 'Result' ? (Number(val) || r.Result) : val;
+    }
+    return updated as CompetitionRecord;
   });
 }
 
@@ -228,7 +238,7 @@ interface TicketCardProps {
   ticket: IssueTicket;
   affectedRecords: CompetitionRecord[];
   decision: Decision | null;
-  onApprove: (resolvedValue: string) => void;
+  onApprove: (resolvedValue: string, fieldEdits: Record<string, string>) => void;
   onReject: () => void;
   isActive?: boolean;
 }
@@ -242,27 +252,45 @@ const RECORD_FIELDS = [
 const TicketCard: React.FC<TicketCardProps> = ({
   ticket, affectedRecords, decision, onApprove, onReject, isActive = false,
 }) => {
-  const [editedValue, setEditedValue] = useState(ticket.suggestedValue);
   const [moreOpen, setMoreOpen] = useState(false);
   const isBulk = ticket.recordIds.length > 1;
   const approveRef = useRef<HTMLButtonElement>(null);
   const level = confidenceLevel(ticket.confidence);
   const representative = affectedRecords[0];
 
+  // All field values — editable, initialised from the representative record
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>(() => {
+    if (!representative) return {};
+    const init: Record<string, string> = {};
+    for (const f of RECORD_FIELDS) {
+      init[f] = String(representative[f] ?? '');
+    }
+    // Override the issue field with the system suggestion (unless validation)
+    if (ticket.method !== 'validation') {
+      init[ticket.field] = ticket.suggestedValue;
+    }
+    return init;
+  });
+
+  const updateField = (field: string, value: string) =>
+    setFieldValues(prev => ({ ...prev, [field]: value }));
+
+  const issueValue = fieldValues[ticket.field] ?? ticket.suggestedValue;
+
   // Keyboard shortcuts — only on active cards
   useEffect(() => {
     if (!isActive || decision) return;
     const handler = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).matches('input, select, textarea')) {
-        if (e.key === 'Enter') { e.preventDefault(); onApprove(editedValue); }
+        if (e.key === 'Enter') { e.preventDefault(); onApprove(issueValue, fieldValues); }
         return;
       }
-      if (e.key === 'Enter') { e.preventDefault(); onApprove(editedValue); }
+      if (e.key === 'Enter') { e.preventDefault(); onApprove(issueValue, fieldValues); }
       else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); onReject(); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isActive, decision, editedValue, onApprove, onReject]);
+  }, [isActive, decision, issueValue, fieldValues, onApprove, onReject]);
 
   if (decision) {
     return (
@@ -332,7 +360,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {RECORD_FIELDS.map(field => {
               const isIssue = field === ticket.field;
-              const rawValue = String(representative[field] ?? '');
+              const currentValue = fieldValues[field] ?? '';
 
               /* ── Issue field: highlighted with original crossed out ── */
               if (isIssue) {
@@ -348,8 +376,13 @@ const TicketCard: React.FC<TicketCardProps> = ({
                       {field}
                     </label>
                     {ticket.method === 'validation' ? (
-                      /* Validation: show the score as read-only, no editable replacement */
-                      <p className="text-sm font-mono font-medium text-red-700">{rawValue}</p>
+                      /* Validation: editable score */
+                      <input
+                        value={currentValue}
+                        onChange={e => updateField(field, e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm font-mono font-medium border border-red-300 rounded-lg
+                          outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent bg-white text-red-700"
+                      />
                     ) : (
                       <div className="flex items-center gap-3 flex-wrap">
                         {/* Original value crossed out */}
@@ -360,11 +393,15 @@ const TicketCard: React.FC<TicketCardProps> = ({
                         {/* Editable suggested value */}
                         <div className="flex-1 min-w-40">
                           {field === 'Club' ? (
-                            <ClubAutocomplete value={editedValue} onChange={setEditedValue} autoFocus />
+                            <ClubAutocomplete
+                              value={currentValue}
+                              onChange={v => updateField(field, v)}
+                              autoFocus
+                            />
                           ) : (
                             <input
-                              value={editedValue}
-                              onChange={e => setEditedValue(e.target.value)}
+                              value={currentValue}
+                              onChange={e => updateField(field, e.target.value)}
                               className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 rounded-lg
                                 outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
                             />
@@ -376,15 +413,25 @@ const TicketCard: React.FC<TicketCardProps> = ({
                 );
               }
 
-              /* ── Normal field: read-only, neutral styling ── */
+              /* ── Normal field: editable input ── */
               return (
                 <div key={field} className="rounded-lg p-3 bg-gray-50 border border-gray-200">
                   <label className="text-xs font-semibold text-gray-400 mb-1 block uppercase tracking-wide">
                     {field}
                   </label>
-                  <p className="text-sm font-mono text-gray-700 truncate" title={rawValue}>
-                    {rawValue || <span className="text-gray-300">—</span>}
-                  </p>
+                  {field === 'Club' ? (
+                    <ClubAutocomplete
+                      value={currentValue}
+                      onChange={v => updateField(field, v)}
+                    />
+                  ) : (
+                    <input
+                      value={currentValue}
+                      onChange={e => updateField(field, e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm font-mono border border-gray-300 rounded-lg
+                        outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white text-gray-700"
+                    />
+                  )}
                 </div>
               );
             })}
@@ -437,7 +484,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
 
       {/* Actions */}
       <div className="bg-gray-50 border-t border-gray-200 px-5 py-3.5 flex gap-3 flex-wrap items-center">
-        <Button ref={approveRef} onClick={() => onApprove(editedValue)}>
+        <Button ref={approveRef} onClick={() => onApprove(issueValue, fieldValues)}>
           {ticket.method === 'validation'
             ? `✓ Keep record${isBulk ? `s (${ticket.recordIds.length})` : ''}`
             : `✓ Apply to ${isBulk ? `all ${ticket.recordIds.length} records` : 'record'}`}
@@ -461,26 +508,28 @@ const TicketCard: React.FC<TicketCardProps> = ({
 // TICKET REVIEW UI (shared between phases)
 // ─────────────────────────────────────────────────────────────────────────────
 
+type DecisionEntry = { decision: Decision; value: string; fieldEdits?: Record<string, string> };
+
 interface TicketReviewProps {
   title: string;
   subtitle: string;
   tickets: IssueTicket[];
   records: CompetitionRecord[];
-  onFinalise: (decisions: Record<string, { decision: Decision; value: string }>) => void;
+  onFinalise: (decisions: Record<string, DecisionEntry>) => void;
 }
 
 const TicketReview: React.FC<TicketReviewProps> = ({
   title, subtitle, tickets, records, onFinalise,
 }) => {
   const [currentIdx, setCurrentIdx]   = useState(0);
-  const [decisions, setDecisions]     = useState<Record<string, { decision: Decision; value: string }>>({});
+  const [decisions, setDecisions]     = useState<Record<string, DecisionEntry>>({});
 
   const current      = tickets[currentIdx];
   const reviewedCount = Object.keys(decisions).length;
   const isLast       = currentIdx === tickets.length - 1;
 
-  const applyDecision = (decision: Decision, resolvedValue: string) => {
-    const next = { ...decisions, [current.id]: { decision, value: resolvedValue } };
+  const applyDecision = (decision: Decision, resolvedValue: string, fieldEdits?: Record<string, string>) => {
+    const next = { ...decisions, [current.id]: { decision, value: resolvedValue, fieldEdits } };
     setDecisions(next);
 
     if (!isLast) {
@@ -587,7 +636,7 @@ const TicketReview: React.FC<TicketReviewProps> = ({
             ticket={{ ...current, resolvedValue: null }}
             affectedRecords={records.filter(r => current.recordIds.includes(r._id))}
             decision={null}
-            onApprove={val => applyDecision('approve', val)}
+            onApprove={(val, edits) => applyDecision('approve', val, edits)}
             onReject={() => applyDecision('reject', '')}
             isActive
           />
@@ -612,16 +661,27 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
   const [intermediateRecords, setIntermediateRecords] = useState<CompetitionRecord[]>([]);
   const [consistencyTickets, setConsistencyTickets] = useState<IssueTicket[]>([]);
 
-  const handleImportFinalise = (allDecisions: Record<string, { decision: Decision; value: string }>) => {
+  const handleImportFinalise = (allDecisions: Record<string, DecisionEntry>) => {
     const approvedFixes = new Map<number, Record<string, string>>();
 
-    for (const [ticketId, { decision, value }] of Object.entries(allDecisions)) {
+    for (const [ticketId, { decision, value, fieldEdits }] of Object.entries(allDecisions)) {
       if (decision !== 'approve') continue;
       const ticket = importTickets.find(t => t.id === ticketId);
       if (!ticket) continue;
+
+      // Issue field fix → all records in ticket
       for (const recordId of ticket.recordIds) {
         if (!approvedFixes.has(recordId)) approvedFixes.set(recordId, {});
         approvedFixes.get(recordId)![ticket.field] = value;
+      }
+
+      // Other field edits → representative (first) record only
+      if (fieldEdits) {
+        const repId = ticket.recordIds[0];
+        if (!approvedFixes.has(repId)) approvedFixes.set(repId, {});
+        for (const [f, v] of Object.entries(fieldEdits)) {
+          if (f !== ticket.field) approvedFixes.get(repId)![f] = v;
+        }
       }
     }
 
@@ -637,11 +697,11 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
       .map(r => {
         const fixes = approvedFixes.get(r._id);
         if (!fixes) return r;
-        return {
-          ...r,
-          ...(fixes['Club'] ? { Club: fixes['Club'] } : {}),
-          ...(fixes['Bow Type'] ? { 'Bow Type': fixes['Bow Type'] as CompetitionRecord['Bow Type'] } : {}),
-        };
+        const updated: any = { ...r };
+        for (const [field, val] of Object.entries(fixes)) {
+          updated[field] = field === 'Result' ? (Number(val) || r.Result) : val;
+        }
+        return updated as CompetitionRecord;
       });
 
     transitionToConsistency(fixedRecords);
@@ -659,7 +719,7 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
     }
   };
 
-  const handleConsistencyFinalise = (allDecisions: Record<string, { decision: Decision; value: string }>) => {
+  const handleConsistencyFinalise = (allDecisions: Record<string, DecisionEntry>) => {
     const finalRecords = applyConsistencyFixes(intermediateRecords, consistencyTickets, allDecisions);
     onComplete(finalRecords);
   };
