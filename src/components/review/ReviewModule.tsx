@@ -233,25 +233,28 @@ interface TicketCardProps {
   isActive?: boolean;
 }
 
+/** Visible CSV fields in display order */
+const RECORD_FIELDS = [
+  'Date', 'Athlete', 'Club', 'Bow Type', 'Age Class', 'Gender',
+  'Shooting Exercise', 'Result', 'Competition',
+] as const;
+
 const TicketCard: React.FC<TicketCardProps> = ({
   ticket, affectedRecords, decision, onApprove, onReject, isActive = false,
 }) => {
   const [editedValue, setEditedValue] = useState(ticket.suggestedValue);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const isBulk = ticket.recordIds.length > 1;
   const approveRef = useRef<HTMLButtonElement>(null);
   const level = confidenceLevel(ticket.confidence);
+  const representative = affectedRecords[0];
 
   // Keyboard shortcuts — only on active cards
   useEffect(() => {
     if (!isActive || decision) return;
     const handler = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).matches('input, select, textarea')) {
-        // Enter inside input field triggers approve
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          onApprove(editedValue);
-        }
+        if (e.key === 'Enter') { e.preventDefault(); onApprove(editedValue); }
         return;
       }
       if (e.key === 'Enter') { e.preventDefault(); onApprove(editedValue); }
@@ -278,139 +281,158 @@ const TicketCard: React.FC<TicketCardProps> = ({
     );
   }
 
+  // Unique source files for this ticket
+  const sourceFiles = [...new Set(affectedRecords.map(r => r._sourceFile).filter(Boolean))];
+
   return (
     <Card className="overflow-hidden fade-in">
       {/* Ticket header */}
-      <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5 flex items-center justify-between gap-3">
+      <div className="bg-gray-50 border-b border-gray-200 px-5 py-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{ticket.field}</span>
           {ticket.method !== 'consistency' && <ConfidenceBadge value={ticket.confidence} />}
           <Badge color={level.color}>{level.label} confidence</Badge>
           <Badge color={ticket.method === 'consistency' ? 'yellow' : 'gray'}>{ticket.method}</Badge>
-          {isBulk && (
-            <Badge color="purple">
-              {ticket.recordIds.length} records affected
-            </Badge>
-          )}
+          {isBulk && <Badge color="purple">{ticket.recordIds.length} records</Badge>}
         </div>
+        {/* Source files in header */}
+        {sourceFiles.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {sourceFiles.map(f => (
+              <span key={f} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs
+                bg-blue-50 text-blue-600 border border-blue-100 rounded font-mono">
+                {f}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Correction detail: original → suggested */}
+      {/* Record form: all CSV fields as a grid */}
       <div className="p-5 space-y-4">
-        {ticket.method === 'validation' ? (
-          /* Score validation: show score + rule message, no editable field */
-          <div className="flex items-start gap-3 flex-wrap">
-            <div>
-              <p className="text-xs text-gray-400 mb-1">Score in CSV</p>
-              <span className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-sm font-mono font-medium">
-                {ticket.originalValue}
-              </span>
-            </div>
-            <div className="flex-1 min-w-48">
-              <p className="text-xs text-gray-400 mb-1">Validation issue</p>
-              <div className={`px-3 py-2 rounded-lg text-sm border ${
-                ticket.confidence === 0
-                  ? 'bg-red-50 border-red-200 text-red-700'
-                  : 'bg-amber-50 border-amber-200 text-amber-700'
-              }`}>
-                {ticket.suggestedValue}
-              </div>
-            </div>
+        {/* Validation message banner (for score-validation tickets) */}
+        {ticket.method === 'validation' && (
+          <div className={`px-4 py-2.5 rounded-lg text-sm border ${
+            ticket.confidence === 0
+              ? 'bg-red-50 border-red-200 text-red-700'
+              : 'bg-amber-50 border-amber-200 text-amber-700'
+          }`}>
+            {ticket.suggestedValue}
           </div>
-        ) : (
-        <div className="flex items-center gap-3 flex-wrap">
-          <div>
-            <p className="text-xs text-gray-400 mb-1">
-              {ticket.method === 'consistency' ? 'Inconsistent values found' : 'Original value in CSV'}
-            </p>
-            <span className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-sm font-mono font-medium">
-              {ticket.originalValue}
-            </span>
-          </div>
-          <span className="text-gray-400 text-lg mt-5">→</span>
-          <div className="flex-1 min-w-48">
-            <p className="text-xs text-gray-400 mb-1">
-              {ticket.field === 'Club'
-                ? 'Choose correct club (or type to add new)'
-                : ticket.method === 'consistency'
-                  ? 'Select correct value for all records'
-                  : 'Corrected value'}
-            </p>
-            {ticket.field === 'Club' ? (
-              <ClubAutocomplete value={editedValue} onChange={setEditedValue} autoFocus />
-            ) : (
-              <input
-                value={editedValue}
-                onChange={e => setEditedValue(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none
-                  focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            )}
-          </div>
-        </div>
         )}
 
-        {/* Expandable correction details panel */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <button
-            onClick={() => setDetailsOpen(!detailsOpen)}
-            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium
-              text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
-          >
-            <span>
-              Affected records {isBulk ? `(${ticket.recordIds.length} total)` : '(1 record)'}
-            </span>
-            <span className={`transition-transform ${detailsOpen ? 'rotate-180' : ''}`}>▾</span>
-          </button>
-          {detailsOpen && (
-            <div className="p-4 space-y-3 fade-in">
-              {/* Preview: original vs corrected */}
-              {ticket.method !== 'validation' && (
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="bg-red-50 rounded-lg p-3">
-                    <p className="font-semibold text-red-600 mb-1">Original</p>
-                    <p className="font-mono text-red-700">{ticket.originalValue}</p>
-                  </div>
-                  <div className="bg-green-50 rounded-lg p-3">
-                    <p className="font-semibold text-green-600 mb-1">Corrected</p>
-                    <p className="font-mono text-green-700">{editedValue}</p>
-                  </div>
-                </div>
-              )}
-              {/* Source files */}
-              {(() => {
-                const files = [...new Set(affectedRecords.map(r => r._sourceFile).filter(Boolean))];
-                return files.length > 0 ? (
-                  <div className="flex items-center gap-2 flex-wrap text-xs">
-                    <span className="text-gray-400 shrink-0">Source file{files.length > 1 ? 's' : ''}:</span>
-                    {files.map(f => (
-                      <span key={f} className="inline-flex items-center gap-1 px-2 py-0.5
-                        bg-blue-50 text-blue-700 border border-blue-100 rounded font-mono">
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-                ) : null;
-              })()}
-              {/* Record list */}
-              <div className="flex flex-wrap gap-1.5">
-                {affectedRecords.slice(0, 10).map(r => (
-                  <span key={r._id} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
-                    {r.Athlete} · {r.Date} · {r.Competition || '—'}
-                    {r._sourceFile && (
-                      <span className="text-gray-400 ml-1">· {r._sourceFile}</span>
+        {/* Consistency description banner */}
+        {ticket.method === 'consistency' && (
+          <div className="px-4 py-2.5 rounded-lg text-sm border bg-yellow-50 border-yellow-200 text-yellow-800">
+            Inconsistent <span className="font-semibold">{ticket.field}</span> values found: {ticket.originalValue}
+          </div>
+        )}
+
+        {representative && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {RECORD_FIELDS.map(field => {
+              const isIssue = field === ticket.field;
+              const rawValue = String(representative[field] ?? '');
+
+              /* ── Issue field: highlighted with original crossed out ── */
+              if (isIssue) {
+                return (
+                  <div key={field} className={`rounded-lg p-3 border-2 col-span-2 md:col-span-3
+                    ${ticket.method === 'validation'
+                      ? 'bg-red-50 border-red-300 ring-2 ring-red-100'
+                      : 'bg-amber-50 border-amber-300 ring-2 ring-amber-100'
+                    }`}
+                  >
+                    <label className={`text-xs font-semibold mb-2 block uppercase tracking-wide
+                      ${ticket.method === 'validation' ? 'text-red-600' : 'text-amber-700'}`}>
+                      {field}
+                    </label>
+                    {ticket.method === 'validation' ? (
+                      /* Validation: show the score as read-only, no editable replacement */
+                      <p className="text-sm font-mono font-medium text-red-700">{rawValue}</p>
+                    ) : (
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {/* Original value crossed out */}
+                        <span className="line-through text-red-400 text-sm font-mono decoration-2">
+                          {ticket.originalValue}
+                        </span>
+                        <span className="text-gray-400">→</span>
+                        {/* Editable suggested value */}
+                        <div className="flex-1 min-w-40">
+                          {field === 'Club' ? (
+                            <ClubAutocomplete value={editedValue} onChange={setEditedValue} autoFocus />
+                          ) : (
+                            <input
+                              value={editedValue}
+                              onChange={e => setEditedValue(e.target.value)}
+                              className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 rounded-lg
+                                outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                            />
+                          )}
+                        </div>
+                      </div>
                     )}
-                  </span>
-                ))}
-                {affectedRecords.length > 10 && (
-                  <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">
-                    +{affectedRecords.length - 10} more
-                  </span>
+                  </div>
+                );
+              }
+
+              /* ── Normal field: read-only, neutral styling ── */
+              return (
+                <div key={field} className="rounded-lg p-3 bg-gray-50 border border-gray-200">
+                  <label className="text-xs font-semibold text-gray-400 mb-1 block uppercase tracking-wide">
+                    {field}
+                  </label>
+                  <p className="text-sm font-mono text-gray-700 truncate" title={rawValue}>
+                    {rawValue || <span className="text-gray-300">—</span>}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Bulk: show other affected records */}
+        {isBulk && (
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setMoreOpen(!moreOpen)}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium
+                text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
+            >
+              <span>{ticket.recordIds.length} records share this issue</span>
+              <span className={`transition-transform ${moreOpen ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {moreOpen && (
+              <div className="p-3 max-h-60 overflow-y-auto fade-in">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-gray-400 border-b border-gray-100">
+                      <th className="pb-1.5 pr-2 font-semibold">Athlete</th>
+                      <th className="pb-1.5 pr-2 font-semibold">Date</th>
+                      <th className="pb-1.5 pr-2 font-semibold">Competition</th>
+                      <th className="pb-1.5 font-semibold">File</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {affectedRecords.slice(0, 20).map(r => (
+                      <tr key={r._id} className="border-b border-gray-50">
+                        <td className="py-1.5 pr-2 text-gray-700">{r.Athlete}</td>
+                        <td className="py-1.5 pr-2 text-gray-500 font-mono">{r.Date}</td>
+                        <td className="py-1.5 pr-2 text-gray-500">{r.Competition || '—'}</td>
+                        <td className="py-1.5 text-blue-600 font-mono">{r._sourceFile || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {affectedRecords.length > 20 && (
+                  <p className="text-xs text-gray-400 mt-2 text-center">
+                    +{affectedRecords.length - 20} more records
+                  </p>
                 )}
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Actions */}
