@@ -2,6 +2,7 @@ import type { BowType, AgeClass, Gender, Correction } from '../types';
 import { BOW_TRANSLATIONS, ESTONIAN_HEADERS } from '../constants/clubs';
 import { getClubs } from './clubStore';
 import { capitalizeWords, formatDate } from './formatting';
+import { validateScore, isSuspiciouslyHigh } from './scoreValidation';
 import Papa from 'papaparse';
 import type { CompetitionRecord } from '../types';
 
@@ -170,21 +171,54 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
           const competition = sanitize(row['Competition'] || '');
           const clubMatch   = matchClub(clubRaw);
           const bowType     = translateBowType(bowClass);
+          const distance    = normalizeDistance(distRaw);
           const ts          = Date.now();
           const corrections: Correction[] = [];
+
+          // Club matching corrections
           if (clubRaw && clubMatch.confidence < 100)
             corrections.push({ field: 'Club', original: clubRaw, corrected: clubMatch.code,
               method: 'fuzzy', confidence: clubMatch.confidence, timestamp: ts });
+
+          // Bow type translation corrections
           const rawBow = bowClass.split(/\s+/)[0];
           if (rawBow && rawBow.toLowerCase() !== bowType.toLowerCase())
             corrections.push({ field: 'Bow Type', original: rawBow, corrected: bowType,
               method: 'translation', confidence: 100, timestamp: ts });
+
+          // Score validation
+          const scoreValidation = validateScore(result, distance);
+          let needsReview = clubMatch.confidence < 90;
+
+          if (!scoreValidation.valid) {
+            corrections.push({
+              field: 'Result',
+              original: String(result),
+              corrected: scoreValidation.error || 'Invalid score',
+              method: 'validation',
+              confidence: 0,
+              timestamp: ts,
+            });
+            needsReview = true;
+          } else if (result > 0 && isSuspiciouslyHigh(result, distance)) {
+            // Flag suspiciously high scores for review (but don't block them)
+            corrections.push({
+              field: 'Result',
+              original: String(result),
+              corrected: `High score (max: ${scoreValidation.maxScore})`,
+              method: 'validation',
+              confidence: 75,
+              timestamp: ts,
+            });
+            needsReview = true;
+          }
+
           return {
             _id: i + 1, Date: date, Athlete: athlete, Club: clubMatch.code,
             'Bow Type': bowType, 'Age Class': extractAgeClass(ageRaw, bowClass),
-            Gender: extractGender(genderRaw, bowClass), 'Shooting Exercise': normalizeDistance(distRaw),
+            Gender: extractGender(genderRaw, bowClass), 'Shooting Exercise': distance,
             Result: result, Competition: competition, _sourceFile: sourceFile,
-            _corrections: corrections, _needsReview: clubMatch.confidence < 90,
+            _corrections: corrections, _needsReview: needsReview,
             _confidence: clubMatch.confidence, _originalData: rawRow,
           };
         }));

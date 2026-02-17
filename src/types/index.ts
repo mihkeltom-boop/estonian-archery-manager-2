@@ -11,7 +11,7 @@ export interface Correction {
   field: string;
   original: string;
   corrected: string;
-  method: 'exact' | 'fuzzy' | 'translation' | 'extraction';
+  method: 'exact' | 'fuzzy' | 'translation' | 'extraction' | 'validation';
   confidence: number;
   timestamp: number;
 }

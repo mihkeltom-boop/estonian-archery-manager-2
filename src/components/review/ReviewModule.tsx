@@ -297,6 +297,27 @@ const TicketCard: React.FC<TicketCardProps> = ({
 
       {/* Correction detail: original → suggested */}
       <div className="p-5 space-y-4">
+        {ticket.method === 'validation' ? (
+          /* Score validation: show score + rule message, no editable field */
+          <div className="flex items-start gap-3 flex-wrap">
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Score in CSV</p>
+              <span className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-sm font-mono font-medium">
+                {ticket.originalValue}
+              </span>
+            </div>
+            <div className="flex-1 min-w-48">
+              <p className="text-xs text-gray-400 mb-1">Validation issue</p>
+              <div className={`px-3 py-2 rounded-lg text-sm border ${
+                ticket.confidence === 0
+                  ? 'bg-red-50 border-red-200 text-red-700'
+                  : 'bg-amber-50 border-amber-200 text-amber-700'
+              }`}>
+                {ticket.suggestedValue}
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="flex items-center gap-3 flex-wrap">
           <div>
             <p className="text-xs text-gray-400 mb-1">
@@ -327,6 +348,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
             )}
           </div>
         </div>
+        )}
 
         {/* Expandable correction details panel */}
         <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -374,10 +396,14 @@ const TicketCard: React.FC<TicketCardProps> = ({
       {/* Actions */}
       <div className="bg-gray-50 border-t border-gray-200 px-5 py-3.5 flex gap-3 flex-wrap items-center">
         <Button ref={approveRef} onClick={() => onApprove(editedValue)}>
-          ✓ Apply to {isBulk ? `all ${ticket.recordIds.length} records` : 'record'}
+          {ticket.method === 'validation'
+            ? `✓ Keep record${isBulk ? `s (${ticket.recordIds.length})` : ''}`
+            : `✓ Apply to ${isBulk ? `all ${ticket.recordIds.length} records` : 'record'}`}
         </Button>
         <Button variant="danger" onClick={onReject}>
-          ✗ {ticket.method === 'consistency' ? 'Skip' : 'Reject'}
+          {ticket.method === 'validation'
+            ? `✗ Remove record${isBulk ? `s (${ticket.recordIds.length})` : ''}`
+            : `✗ ${ticket.method === 'consistency' ? 'Skip' : 'Reject'}`}
         </Button>
         <span className="text-xs text-gray-400 ml-auto hidden sm:flex items-center gap-3">
           <span><kbd className="bg-gray-200 rounded px-1.5 py-0.5 font-mono text-gray-600">Enter</kbd> approve</span>

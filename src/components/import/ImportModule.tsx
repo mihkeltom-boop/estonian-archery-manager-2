@@ -21,6 +21,11 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
   const [parsing, setParsing]     = useState(false);
   const [progress, setProgress]   = useState(0);
   const [parseError, setParseError] = useState('');
+  const [validationSummary, setValidationSummary] = useState<{
+    total: number;
+    invalidScores: number;
+    suspiciousScores: number;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // ── File handling ──────────────────────────────────────────────────────
@@ -41,11 +46,25 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
 
   // ── Parse files ────────────────────────────────────────────────────────
 
+  const buildSummary = (records: CompetitionRecord[]) => {
+    let invalidScores = 0;
+    let suspiciousScores = 0;
+    for (const r of records) {
+      for (const c of r._corrections) {
+        if (c.field === 'Result' && c.method === 'validation') {
+          if (c.confidence === 0) invalidScores++;
+          else if (c.confidence === 75) suspiciousScores++;
+        }
+      }
+    }
+    setValidationSummary({ total: records.length, invalidScores, suspiciousScores });
+  };
+
   const parseFiles = async () => {
     const valid = selected.filter(s => !s.error);
     if (!valid.length) return;
 
-    setParsing(true); setProgress(5); setParseError('');
+    setParsing(true); setProgress(5); setParseError(''); setValidationSummary(null);
 
     try {
       const all: CompetitionRecord[] = [];
@@ -60,6 +79,7 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
 
       // Re-sequence IDs globally
       all.forEach((r, i) => { r._id = i + 1; });
+      buildSummary(all);
       setProgress(100);
       setTimeout(() => { setParsing(false); onParsed(all); }, 300);
 
@@ -72,8 +92,9 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
   };
 
   const loadSample = async () => {
-    setParsing(true); setProgress(40);
+    setParsing(true); setProgress(40); setValidationSummary(null);
     const records = await parseCSVText(SAMPLE_CSV, 'sample_data.csv');
+    buildSummary(records);
     setProgress(100);
     setTimeout(() => { setParsing(false); onParsed(records); }, 300);
   };
@@ -161,6 +182,33 @@ const ImportModule: React.FC<Props> = ({ onParsed }) => {
       {parseError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
           {parseError}
+        </div>
+      )}
+
+      {/* Score validation summary */}
+      {validationSummary && (validationSummary.invalidScores > 0 || validationSummary.suspiciousScores > 0) && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+          <p className="text-sm font-semibold text-amber-800">Score validation issues found</p>
+          <p className="text-xs text-amber-700">
+            Parsed {validationSummary.total} records. Scores are validated against the 360-point-per-distance
+            archery rule. Flagged records will appear in the Review step.
+          </p>
+          <div className="flex gap-2 flex-wrap pt-1">
+            {validationSummary.invalidScores > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
+                bg-red-100 text-red-700 text-xs font-medium border border-red-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
+                {validationSummary.invalidScores} score{validationSummary.invalidScores > 1 ? 's' : ''} exceed maximum
+              </span>
+            )}
+            {validationSummary.suspiciousScores > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
+                bg-amber-100 text-amber-700 text-xs font-medium border border-amber-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                {validationSummary.suspiciousScores} suspiciously high score{validationSummary.suspiciousScores > 1 ? 's' : ''} (&gt;90% of max)
+              </span>
+            )}
+          </div>
         </div>
       )}
 
