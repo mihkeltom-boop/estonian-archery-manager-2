@@ -551,19 +551,28 @@ const TicketReview: React.FC<TicketReviewProps> = ({
 }) => {
   const [currentIdx, setCurrentIdx]   = useState(0);
   const [decisions, setDecisions]     = useState<Record<string, DecisionEntry>>({});
+  const decidingRef  = useRef(false);   // prevents double-fire within same render
+  const finalizedRef = useRef(false);   // prevents double finalization
 
   const current      = tickets[currentIdx];
   const reviewedCount = Object.keys(decisions).length;
   const isLast       = currentIdx === tickets.length - 1;
 
+  // Reset the deciding lock after every render (state is committed)
+  useEffect(() => { decidingRef.current = false; });
+
   const applyDecision = (decision: Decision, resolvedValue: string, fieldEdits?: Record<string, string>) => {
+    if (finalizedRef.current || decidingRef.current || !current) return;
+    decidingRef.current = true;
+
     const next = { ...decisions, [current.id]: { decision, value: resolvedValue, fieldEdits } };
     setDecisions(next);
 
-    if (!isLast) {
-      setCurrentIdx(i => i + 1);
-    } else {
+    if (isLast) {
+      finalizedRef.current = true;
       onFinalise(next);
+    } else {
+      setCurrentIdx(i => i + 1);
     }
   };
 
