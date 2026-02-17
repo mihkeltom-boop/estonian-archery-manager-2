@@ -88,8 +88,25 @@ function extractYear(date: string): string {
   return 'unknown';
 }
 
-function isSpecificAgeClass(ac: string): boolean {
-  return ac !== 'Adult';
+// Senior classes resolve upward (oldest wins); youth resolve to youngest (most specific).
+const SENIOR_RANK: Record<string, number> = { '+50': 1, '+60': 2, '+70': 3 };
+const YOUTH_RANK:  Record<string, number> = { 'U21': 1, 'U18': 2, 'U15': 3, 'U13': 4 };
+
+/** Returns the authoritative age class from a mixed set, or null if ambiguous. */
+function resolveAgeClass(ageClasses: string[]): string | null {
+  const unique = [...new Set(ageClasses)];
+  if (unique.length <= 1) return null;
+  const seniors = unique.filter(ac => ac in SENIOR_RANK);
+  const youths  = unique.filter(ac => ac in YOUTH_RANK);
+  if (seniors.length > 0 && youths.length === 0) {
+    // Correct upward: pick the highest senior rank
+    return seniors.sort((a, b) => SENIOR_RANK[b] - SENIOR_RANK[a])[0];
+  }
+  if (youths.length > 0 && seniors.length === 0) {
+    // Correct to most specific: pick the youngest youth rank
+    return youths.sort((a, b) => YOUTH_RANK[b] - YOUTH_RANK[a])[0];
+  }
+  return null; // Mixed senior+youth or other — can't auto-resolve
 }
 
 function autoFixAgeClasses(records: CompetitionRecord[]): CompetitionRecord[] {
@@ -105,14 +122,11 @@ function autoFixAgeClasses(records: CompetitionRecord[]): CompetitionRecord[] {
   const fixes = new Map<number, string>();
 
   for (const recs of groups.values()) {
-    const ageClasses = [...new Set(recs.map(r => r['Age Class']))];
-    if (ageClasses.length <= 1) continue;
-    const specific = ageClasses.filter(isSpecificAgeClass);
-    if (specific.length === 1) {
-      const correctClass = specific[0];
-      for (const r of recs) {
-        if (r['Age Class'] !== correctClass) fixes.set(r._id, correctClass);
-      }
+    const ageClasses = recs.map(r => r['Age Class']);
+    const correctClass = resolveAgeClass(ageClasses);
+    if (!correctClass) continue;
+    for (const r of recs) {
+      if (r['Age Class'] !== correctClass) fixes.set(r._id, correctClass);
     }
   }
 
@@ -180,11 +194,25 @@ function buildConsistencyTickets(records: CompetitionRecord[]): IssueTicket[] {
       const ageVariants = [...new Set(yearRecs.map(r => r['Age Class']))];
       if (ageVariants.length <= 1) continue;
       const { sorted, dominance } = countVariants(yearRecs.map(r => r['Age Class']));
+      // Prefer resolveAgeClass direction (senior upward / youth youngest); fall back to most common.
+      const suggestedAge = resolveAgeClass(ageVariants) ?? sorted[0][0];
       tickets.push({
         id: `consistency::Age Class::${normName}::${year}`, field: 'Age Class',
         originalValue: `${athleteName} (${year}): ${sorted.map(([v, n]) => `${v} (${n}x)`).join(' / ')}`,
-        suggestedValue: sorted[0][0], confidence: Math.round(dominance * 100),
+        suggestedValue: suggestedAge, confidence: Math.round(dominance * 100),
         method: 'consistency', recordIds: yearRecs.map(r => r._id), resolvedValue: null,
+      });
+    }
+
+    // Bow type consistency across all records for this athlete
+    const bowVariants = [...new Set(recs.map(r => r['Bow Type']))];
+    if (bowVariants.length > 1) {
+      const { sorted: bowSorted, dominance: bowDom } = countVariants(recs.map(r => r['Bow Type']));
+      tickets.push({
+        id: `consistency::Bow Type::${normName}`, field: 'Bow Type',
+        originalValue: `${athleteName}: ${bowSorted.map(([v, n]) => `${v} (${n}x)`).join(' / ')}`,
+        suggestedValue: bowSorted[0][0], confidence: Math.round(bowDom * 100),
+        method: 'consistency', recordIds: recs.map(r => r._id), resolvedValue: null,
       });
     }
   }

@@ -4,7 +4,7 @@ import type { BowType, AgeClass } from '../types';
 
 export const ESTONIAN_CLUBS = [
   { code: 'TLVK', name: 'Tallinna Vibukool' },
-  { code: 'VILJ', name: 'Vana-Võidu VK' },
+  { code: 'VVVK', name: 'Vana-Võidu Vibuklub' },
   { code: 'SAG',  name: 'Sagittarius' },
   { code: 'TVSK', name: 'Tartu Valla Spordiklubi' },
   { code: 'JVI',  name: 'Järvakandi Ilves' },
