@@ -365,21 +365,41 @@ const TicketCard: React.FC<TicketCardProps> = ({
           {detailsOpen && (
             <div className="p-4 space-y-3 fade-in">
               {/* Preview: original vs corrected */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="bg-red-50 rounded-lg p-3">
-                  <p className="font-semibold text-red-600 mb-1">Original</p>
-                  <p className="font-mono text-red-700">{ticket.originalValue}</p>
+              {ticket.method !== 'validation' && (
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-red-50 rounded-lg p-3">
+                    <p className="font-semibold text-red-600 mb-1">Original</p>
+                    <p className="font-mono text-red-700">{ticket.originalValue}</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3">
+                    <p className="font-semibold text-green-600 mb-1">Corrected</p>
+                    <p className="font-mono text-green-700">{editedValue}</p>
+                  </div>
                 </div>
-                <div className="bg-green-50 rounded-lg p-3">
-                  <p className="font-semibold text-green-600 mb-1">Corrected</p>
-                  <p className="font-mono text-green-700">{editedValue}</p>
-                </div>
-              </div>
+              )}
+              {/* Source files */}
+              {(() => {
+                const files = [...new Set(affectedRecords.map(r => r._sourceFile).filter(Boolean))];
+                return files.length > 0 ? (
+                  <div className="flex items-center gap-2 flex-wrap text-xs">
+                    <span className="text-gray-400 shrink-0">Source file{files.length > 1 ? 's' : ''}:</span>
+                    {files.map(f => (
+                      <span key={f} className="inline-flex items-center gap-1 px-2 py-0.5
+                        bg-blue-50 text-blue-700 border border-blue-100 rounded font-mono">
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
               {/* Record list */}
               <div className="flex flex-wrap gap-1.5">
                 {affectedRecords.slice(0, 10).map(r => (
                   <span key={r._id} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
                     {r.Athlete} · {r.Date} · {r.Competition || '—'}
+                    {r._sourceFile && (
+                      <span className="text-gray-400 ml-1">· {r._sourceFile}</span>
+                    )}
                   </span>
                 ))}
                 {affectedRecords.length > 10 && (
