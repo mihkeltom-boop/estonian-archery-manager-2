@@ -124,97 +124,92 @@ const RECURVE_JUNIOR_ALL: DistanceConfig[] = [
 ];
 
 // ── FULL LEADERBOARD LAYOUT ─────────────────────────────────────────────────
-// Order: Adult, U21, U18, U15, U13, +50, +60, +70
-//   Within age: Women, Men
-//   Within gender: Recurve, Compound, Barebow, Longbow
+// Order: Bow (Recurve→Compound→Barebow→Longbow)
+//   Within bow: Gender (Women→Men)
+//   Within gender: Age (Adult first, then U21→U18→U15→U13→+50→+60→+70)
+//
+// This groups all age classes under the same bow+gender column in the quick-jump
+// nav: Recurve Women | Recurve Men | Compound Women | … | Longbow Men
 
 export const LEADERBOARD_LAYOUT: CategoryConfig[] = [
 
-  // ── ADULT ──────────────────────────────────────────────────────────────
-  { ageClass: 'Adult', gender: 'Women', bowType: 'Recurve',  distances: RECURVE_ALL },
+  // ── RECURVE WOMEN ───────────────────────────────────────────────────────
+  { ageClass: 'Adult', gender: 'Women', bowType: 'Recurve', distances: RECURVE_ALL },
+  { ageClass: 'U21',   gender: 'Women', bowType: 'Recurve', distances: RECURVE_ALL },
+  { ageClass: 'U18',   gender: 'Women', bowType: 'Recurve', distances: RECURVE_ALL },
+  { ageClass: 'U15',   gender: 'Women', bowType: 'Recurve', distances: RECURVE_JUNIOR_ALL },
+  { ageClass: 'U13',   gender: 'Women', bowType: 'Recurve', distances: RECURVE_JUNIOR_ALL },
+  { ageClass: '+50',   gender: 'Women', bowType: 'Recurve', distances: RECURVE_ALL },
+  { ageClass: '+60',   gender: 'Women', bowType: 'Recurve', distances: RECURVE_ALL },
+  { ageClass: '+70',   gender: 'Women', bowType: 'Recurve', distances: RECURVE_ALL },
+
+  // ── RECURVE MEN ─────────────────────────────────────────────────────────
+  { ageClass: 'Adult', gender: 'Men', bowType: 'Recurve', distances: RECURVE_ALL },
+  { ageClass: 'U21',   gender: 'Men', bowType: 'Recurve', distances: RECURVE_ALL },
+  { ageClass: 'U18',   gender: 'Men', bowType: 'Recurve', distances: RECURVE_ALL },
+  { ageClass: 'U15',   gender: 'Men', bowType: 'Recurve', distances: RECURVE_JUNIOR_ALL },
+  { ageClass: 'U13',   gender: 'Men', bowType: 'Recurve', distances: RECURVE_JUNIOR_ALL },
+  { ageClass: '+50',   gender: 'Men', bowType: 'Recurve', distances: RECURVE_ALL },
+  { ageClass: '+60',   gender: 'Men', bowType: 'Recurve', distances: RECURVE_ALL },
+  { ageClass: '+70',   gender: 'Men', bowType: 'Recurve', distances: RECURVE_ALL },
+
+  // ── COMPOUND WOMEN ──────────────────────────────────────────────────────
   { ageClass: 'Adult', gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: 'Adult', gender: 'Women', bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: 'Adult', gender: 'Women', bowType: 'Longbow',  distances: LONGBOW_ALL },
+  { ageClass: 'U21',   gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: 'U18',   gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: 'U15',   gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: 'U13',   gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: '+50',   gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: '+60',   gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: '+70',   gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
 
-  { ageClass: 'Adult', gender: 'Men',   bowType: 'Recurve',  distances: RECURVE_ALL },
-  { ageClass: 'Adult', gender: 'Men',   bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: 'Adult', gender: 'Men',   bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: 'Adult', gender: 'Men',   bowType: 'Longbow',  distances: LONGBOW_ALL },
+  // ── COMPOUND MEN ────────────────────────────────────────────────────────
+  { ageClass: 'Adult', gender: 'Men', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: 'U21',   gender: 'Men', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: 'U18',   gender: 'Men', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: 'U15',   gender: 'Men', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: 'U13',   gender: 'Men', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: '+50',   gender: 'Men', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: '+60',   gender: 'Men', bowType: 'Compound', distances: COMPOUND_ALL },
+  { ageClass: '+70',   gender: 'Men', bowType: 'Compound', distances: COMPOUND_ALL },
 
-  // ── U21 ────────────────────────────────────────────────────────────────
-  { ageClass: 'U21', gender: 'Women', bowType: 'Recurve',  distances: RECURVE_ALL },
-  { ageClass: 'U21', gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: 'U21', gender: 'Women', bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: 'U21', gender: 'Women', bowType: 'Longbow',  distances: LONGBOW_ALL },
+  // ── BAREBOW WOMEN ───────────────────────────────────────────────────────
+  { ageClass: 'Adult', gender: 'Women', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: 'U21',   gender: 'Women', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: 'U18',   gender: 'Women', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: 'U15',   gender: 'Women', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: 'U13',   gender: 'Women', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: '+50',   gender: 'Women', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: '+60',   gender: 'Women', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: '+70',   gender: 'Women', bowType: 'Barebow', distances: BAREBOW_ALL },
 
-  { ageClass: 'U21', gender: 'Men',   bowType: 'Recurve',  distances: RECURVE_ALL },
-  { ageClass: 'U21', gender: 'Men',   bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: 'U21', gender: 'Men',   bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: 'U21', gender: 'Men',   bowType: 'Longbow',  distances: LONGBOW_ALL },
+  // ── BAREBOW MEN ─────────────────────────────────────────────────────────
+  { ageClass: 'Adult', gender: 'Men', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: 'U21',   gender: 'Men', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: 'U18',   gender: 'Men', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: 'U15',   gender: 'Men', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: 'U13',   gender: 'Men', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: '+50',   gender: 'Men', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: '+60',   gender: 'Men', bowType: 'Barebow', distances: BAREBOW_ALL },
+  { ageClass: '+70',   gender: 'Men', bowType: 'Barebow', distances: BAREBOW_ALL },
 
-  // ── U18 ────────────────────────────────────────────────────────────────
-  { ageClass: 'U18', gender: 'Women', bowType: 'Recurve',  distances: RECURVE_ALL },
-  { ageClass: 'U18', gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: 'U18', gender: 'Women', bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: 'U18', gender: 'Women', bowType: 'Longbow',  distances: LONGBOW_ALL },
+  // ── LONGBOW WOMEN ───────────────────────────────────────────────────────
+  { ageClass: 'Adult', gender: 'Women', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: 'U21',   gender: 'Women', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: 'U18',   gender: 'Women', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: 'U15',   gender: 'Women', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: 'U13',   gender: 'Women', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: '+50',   gender: 'Women', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: '+60',   gender: 'Women', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: '+70',   gender: 'Women', bowType: 'Longbow', distances: LONGBOW_ALL },
 
-  { ageClass: 'U18', gender: 'Men',   bowType: 'Recurve',  distances: RECURVE_ALL },
-  { ageClass: 'U18', gender: 'Men',   bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: 'U18', gender: 'Men',   bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: 'U18', gender: 'Men',   bowType: 'Longbow',  distances: LONGBOW_ALL },
-
-  // ── U15 ────────────────────────────────────────────────────────────────
-  { ageClass: 'U15', gender: 'Women', bowType: 'Recurve',  distances: RECURVE_JUNIOR_ALL },
-  { ageClass: 'U15', gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: 'U15', gender: 'Women', bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: 'U15', gender: 'Women', bowType: 'Longbow',  distances: LONGBOW_ALL },
-
-  { ageClass: 'U15', gender: 'Men',   bowType: 'Recurve',  distances: RECURVE_JUNIOR_ALL },
-  { ageClass: 'U15', gender: 'Men',   bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: 'U15', gender: 'Men',   bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: 'U15', gender: 'Men',   bowType: 'Longbow',  distances: LONGBOW_ALL },
-
-  // ── U13 ────────────────────────────────────────────────────────────────
-  { ageClass: 'U13', gender: 'Women', bowType: 'Recurve',  distances: RECURVE_JUNIOR_ALL },
-  { ageClass: 'U13', gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: 'U13', gender: 'Women', bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: 'U13', gender: 'Women', bowType: 'Longbow',  distances: LONGBOW_ALL },
-
-  { ageClass: 'U13', gender: 'Men',   bowType: 'Recurve',  distances: RECURVE_JUNIOR_ALL },
-  { ageClass: 'U13', gender: 'Men',   bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: 'U13', gender: 'Men',   bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: 'U13', gender: 'Men',   bowType: 'Longbow',  distances: LONGBOW_ALL },
-
-  // ── +50 ────────────────────────────────────────────────────────────────
-  { ageClass: '+50', gender: 'Women', bowType: 'Recurve',  distances: RECURVE_ALL },
-  { ageClass: '+50', gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: '+50', gender: 'Women', bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: '+50', gender: 'Women', bowType: 'Longbow',  distances: LONGBOW_ALL },
-
-  { ageClass: '+50', gender: 'Men',   bowType: 'Recurve',  distances: RECURVE_ALL },
-  { ageClass: '+50', gender: 'Men',   bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: '+50', gender: 'Men',   bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: '+50', gender: 'Men',   bowType: 'Longbow',  distances: LONGBOW_ALL },
-
-  // ── +60 ────────────────────────────────────────────────────────────────
-  { ageClass: '+60', gender: 'Women', bowType: 'Recurve',  distances: RECURVE_ALL },
-  { ageClass: '+60', gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: '+60', gender: 'Women', bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: '+60', gender: 'Women', bowType: 'Longbow',  distances: LONGBOW_ALL },
-
-  { ageClass: '+60', gender: 'Men',   bowType: 'Recurve',  distances: RECURVE_ALL },
-  { ageClass: '+60', gender: 'Men',   bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: '+60', gender: 'Men',   bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: '+60', gender: 'Men',   bowType: 'Longbow',  distances: LONGBOW_ALL },
-
-  // ── +70 ────────────────────────────────────────────────────────────────
-  { ageClass: '+70', gender: 'Women', bowType: 'Recurve',  distances: RECURVE_ALL },
-  { ageClass: '+70', gender: 'Women', bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: '+70', gender: 'Women', bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: '+70', gender: 'Women', bowType: 'Longbow',  distances: LONGBOW_ALL },
-
-  { ageClass: '+70', gender: 'Men',   bowType: 'Recurve',  distances: RECURVE_ALL },
-  { ageClass: '+70', gender: 'Men',   bowType: 'Compound', distances: COMPOUND_ALL },
-  { ageClass: '+70', gender: 'Men',   bowType: 'Barebow',  distances: BAREBOW_ALL },
-  { ageClass: '+70', gender: 'Men',   bowType: 'Longbow',  distances: LONGBOW_ALL },
+  // ── LONGBOW MEN ─────────────────────────────────────────────────────────
+  { ageClass: 'Adult', gender: 'Men', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: 'U21',   gender: 'Men', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: 'U18',   gender: 'Men', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: 'U15',   gender: 'Men', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: 'U13',   gender: 'Men', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: '+50',   gender: 'Men', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: '+60',   gender: 'Men', bowType: 'Longbow', distances: LONGBOW_ALL },
+  { ageClass: '+70',   gender: 'Men', bowType: 'Longbow', distances: LONGBOW_ALL },
 ];

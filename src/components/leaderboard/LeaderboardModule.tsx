@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { Badge, Select, EmptyState } from '../common';
 import { formatNumber } from '../../utils/formatting';
 import { LEADERBOARD_LAYOUT } from '../../constants/leaderboard';
-import type { CompetitionRecord, AgeClass, BowType } from '../../types';
+import type { CompetitionRecord, AgeClass, BowType, Gender } from '../../types';
 import type { CategoryConfig, DistanceConfig } from '../../constants/leaderboard';
 
 // ── TYPES ───────────────────────────────────────────────────────────────────
@@ -241,45 +241,104 @@ const CategorySection: React.FC<{
 };
 
 // ── QUICK-JUMP NAV ───────────────────────────────────────────────────────────
-// Pills are derived from LEADERBOARD_LAYOUT order (filter preserves it),
-// so they appear in the same order as the sections on the page.
+// 8-column grid: one column per bow×gender combo, in the same order as the page.
+// Top cell = Adult category (the "column header"), sub-cells = other age classes.
+
+const BOW_GENDER_COLUMNS: Array<{ bowType: BowType; gender: Gender }> = [
+  { bowType: 'Recurve',  gender: 'Women' },
+  { bowType: 'Recurve',  gender: 'Men'   },
+  { bowType: 'Compound', gender: 'Women' },
+  { bowType: 'Compound', gender: 'Men'   },
+  { bowType: 'Barebow',  gender: 'Women' },
+  { bowType: 'Barebow',  gender: 'Men'   },
+  { bowType: 'Longbow',  gender: 'Women' },
+  { bowType: 'Longbow',  gender: 'Men'   },
+];
+
+const GENDER_HEADER_COLOR: Record<Gender, string> = {
+  Women: 'bg-purple-600 hover:bg-purple-700 text-white',
+  Men:   'bg-blue-600   hover:bg-blue-700   text-white',
+};
+
+const GENDER_EMPTY_COLOR: Record<Gender, string> = {
+  Women: 'bg-purple-100 text-purple-400',
+  Men:   'bg-blue-100   text-blue-400',
+};
 
 const QuickJump: React.FC<{
   categories: CategoryConfig[];
   records: CompetitionRecord[];
   year: string;
 }> = ({ categories, records, year }) => {
-  const active = useMemo(() =>
-    categories.filter(cat => categoryHasData(cat, records, year)),
-    [categories, records, year]
-  );
-
-  if (active.length === 0) return null;
-
   const scrollTo = useCallback((id: string) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
+  // For each bow×gender column collect categories that have data (layout order preserved)
+  const columns = useMemo(() =>
+    BOW_GENDER_COLUMNS.map(col => {
+      const catsWithData = categories.filter(c =>
+        c.bowType === col.bowType &&
+        c.gender  === col.gender  &&
+        categoryHasData(c, records, year)
+      );
+      return { ...col, cats: catsWithData };
+    }).filter(col => col.cats.length > 0),
+    [categories, records, year]
+  );
+
+  if (columns.length === 0) return null;
+
   return (
-    <div className="mb-6">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+    <div className="mb-8">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
         Jump to category
       </p>
-      <div className="flex flex-wrap gap-2">
-        {active.map(cat => (
-          <button
-            key={categoryId(cat)}
-            onClick={() => scrollTo(categoryId(cat))}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium
-              bg-white border border-gray-300 text-gray-700
-              hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700
-              transition-colors cursor-pointer"
-          >
-            <span>{BOW_ICON[cat.bowType]}</span>
-            {categoryLabel(cat)}
-          </button>
-        ))}
+      {/* Horizontally scrollable so it works on small screens */}
+      <div className="overflow-x-auto pb-2">
+        <div className="flex gap-2 min-w-max">
+          {columns.map(col => {
+            const adultCat  = col.cats.find(c => c.ageClass === 'Adult');
+            const otherCats = col.cats.filter(c => c.ageClass !== 'Adult');
+
+            return (
+              <div
+                key={`${col.bowType}-${col.gender}`}
+                className="flex flex-col gap-1 w-24"
+              >
+                {/* Column header — Adult category */}
+                {adultCat ? (
+                  <button
+                    onClick={() => scrollTo(categoryId(adultCat))}
+                    className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg
+                      text-xs font-semibold transition-colors ${GENDER_HEADER_COLOR[col.gender]}`}
+                  >
+                    {BOW_ICON[col.bowType]} {col.gender}
+                  </button>
+                ) : (
+                  /* No Adult data but other ages exist — show label only */
+                  <div className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg
+                    text-xs font-semibold ${GENDER_EMPTY_COLOR[col.gender]}`}>
+                    {BOW_ICON[col.bowType]} {col.gender}
+                  </div>
+                )}
+
+                {/* Age-class sub-pills */}
+                {otherCats.map(cat => (
+                  <button
+                    key={categoryId(cat)}
+                    onClick={() => scrollTo(categoryId(cat))}
+                    className={`flex items-center justify-center px-2 py-1 rounded text-xs font-medium
+                      transition-opacity hover:opacity-75 ${AGE_COLOR[cat.ageClass]}`}
+                  >
+                    {cat.ageClass}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
