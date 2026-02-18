@@ -173,6 +173,7 @@ export function useDatabaseState(initial: CompetitionRecord[] = []) {
   return {
     state,
     displayed,
+    allFiltered: sorted,
     filteredCount: filtered.length,
     hasMore: sorted.length > displayed.length,
     activeFilterCount,

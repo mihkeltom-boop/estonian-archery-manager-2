@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { Button, Card, Badge, StatCard, Input, Select, EmptyState } from '../common';
 import { useDatabaseState } from '../../hooks/useDatabaseState';
 import { exportToCSV, downloadCSV } from '../../utils/security';
@@ -59,19 +59,41 @@ interface Props {
 
 const DatabaseModule: React.FC<Props> = ({ records }) => {
   const db = useDatabaseState(records);
-  const { state, displayed, filteredCount, hasMore, activeFilterCount, statistics, uniqueValues, uniqueValuesByCount } = db;
+  const { state, displayed, allFiltered, filteredCount, hasMore, activeFilterCount, statistics, uniqueValues, uniqueValuesByCount } = db;
 
   // Unique option lists for dropdowns
   const clubOptions      = uniqueValues('Club').map(v => ({ value: v, label: v }));
   const distanceOptions  = uniqueValuesByCount('Shooting Exercise').map(v => ({ value: v, label: v }));
 
-  const handleExport = () => {
-    const csv = exportToCSV(
-      displayed as unknown as Record<string, unknown>[],
-      COLUMNS.map(c => ({ key: c.key, label: c.label }))
+  // ── Infinite scroll via IntersectionObserver ──
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef(db.loadMore);
+  loadMoreRef.current = db.loadMore;
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) loadMoreRef.current(); },
+      { rootMargin: '200px' },
     );
-    downloadCSV(csv, `archery-${new Date().toISOString().split('T')[0]}.csv`);
-    showToast('success', `Exported ${displayed.length} records to CSV`);
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  // ── Export helpers ──
+  const cols = COLUMNS.map(c => ({ key: c.key, label: c.label }));
+
+  const handleExportSelection = () => {
+    const csv = exportToCSV(displayed as unknown as Record<string, unknown>[], cols);
+    downloadCSV(csv, `archery-selection-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('success', `Exported ${displayed.length} loaded records to CSV`);
+  };
+
+  const handleExportAll = () => {
+    const csv = exportToCSV(allFiltered as unknown as Record<string, unknown>[], cols);
+    downloadCSV(csv, `archery-all-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('success', `Exported all ${allFiltered.length} filtered records to CSV`);
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -92,9 +114,14 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
             )}
           </p>
         </div>
-        <Button variant="secondary" onClick={handleExport} size="sm">
-          ↓ Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={handleExportSelection} size="sm">
+            ↓ Export loaded ({displayed.length.toLocaleString()})
+          </Button>
+          <Button variant="secondary" onClick={handleExportAll} size="sm">
+            ↓ Export all ({filteredCount.toLocaleString()})
+          </Button>
+        </div>
       </div>
 
       {/* Statistics */}
@@ -279,15 +306,19 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Infinite scroll sentinel + status */}
         {hasMore && (
-          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+          <div ref={sentinelRef} className="px-4 py-3 border-t border-gray-100 text-center">
             <span className="text-sm text-gray-400">
-              Showing {displayed.length.toLocaleString()} of {filteredCount.toLocaleString()}
+              Showing {displayed.length.toLocaleString()} of {filteredCount.toLocaleString()} — scroll for more
             </span>
-            <Button variant="secondary" size="sm" onClick={db.loadMore}>
-              Load more
-            </Button>
+          </div>
+        )}
+        {!hasMore && displayed.length > 0 && (
+          <div className="px-4 py-3 border-t border-gray-100 text-center">
+            <span className="text-sm text-gray-400">
+              All {filteredCount.toLocaleString()} records loaded
+            </span>
           </div>
         )}
       </Card>
