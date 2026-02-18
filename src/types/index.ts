@@ -3,7 +3,7 @@
 export type BowType = 'Recurve' | 'Compound' | 'Barebow' | 'Longbow';
 export type AgeClass = 'Adult' | 'U21' | 'U18' | 'U15' | 'U13' | '+50' | '+60' | '+70';
 export type Gender = 'Men' | 'Women';
-export type Step = 'database';
+export type Step = 'database' | 'leaderboard';
 
 // ── CORE RECORD ────────────────────────────────────────────────────────────
 

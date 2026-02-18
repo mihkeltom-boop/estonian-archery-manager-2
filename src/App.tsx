@@ -1,13 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import DatabaseModule from './components/database/DatabaseModule';
+import LeaderboardModule from './components/leaderboard/LeaderboardModule';
 import { Badge } from './components/common';
 import { ToastContainer, showToast } from './components/common/Toast';
 import type { CompetitionRecord } from './types';
+
+type AppTab = 'database' | 'leaderboard';
+
+const TabNav: React.FC<{ current: AppTab; onNavigate: (t: AppTab) => void }> = ({
+  current,
+  onNavigate,
+}) => {
+  const tabs: Array<{ id: AppTab; label: string; icon: string }> = [
+    { id: 'database',    label: 'Database',    icon: '📋' },
+    { id: 'leaderboard', label: 'Leaderboard', icon: '🏆' },
+  ];
+
+  return (
+    <nav className="bg-white border-b border-gray-200">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex">
+        {tabs.map(tab => {
+          const active = current === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onNavigate(tab.id)}
+              className={`flex items-center gap-2 py-4 px-4 sm:px-5 border-b-2 text-sm font-medium
+                transition-colors whitespace-nowrap
+                ${active
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              <span>{tab.icon}</span>
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+};
 
 const App: React.FC = () => {
   const [records, setRecords]   = useState<CompetitionRecord[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
+  const [tab, setTab]           = useState<AppTab>('database');
 
   useEffect(() => {
     fetch('/data.json')
@@ -48,6 +86,8 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      <TabNav current={tab} onNavigate={setTab} />
+
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
         {loading && (
           <div className="flex items-center justify-center py-24 text-gray-400 text-sm gap-2">
@@ -67,7 +107,8 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {!loading && !error && <DatabaseModule records={records} />}
+        {!loading && !error && tab === 'database'    && <DatabaseModule    records={records} />}
+        {!loading && !error && tab === 'leaderboard' && <LeaderboardModule records={records} />}
       </main>
 
       <footer className="bg-white border-t border-gray-200 mt-auto">
