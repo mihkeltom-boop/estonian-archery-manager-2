@@ -96,6 +96,21 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
     showToast('success', `Exported all ${allFiltered.length} filtered records to CSV`);
   };
 
+  // Export viewer-compatible JSON (strips internal-only fields not used by the viewer)
+  const handleExportJSON = () => {
+    const viewerRecords = allFiltered.map(({ _corrections, _needsReview, _confidence, _originalData, ...pub }) => pub);
+    const blob = new Blob([JSON.stringify(viewerRecords, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `archery-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('success', `Exported ${viewerRecords.length} records as viewer JSON`);
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -114,12 +129,15 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
             )}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
           <Button variant="secondary" onClick={handleExportSelection} size="sm">
-            ↓ Export loaded ({displayed.length.toLocaleString()})
+            ↓ CSV loaded ({displayed.length.toLocaleString()})
           </Button>
           <Button variant="secondary" onClick={handleExportAll} size="sm">
-            ↓ Export all ({filteredCount.toLocaleString()})
+            ↓ CSV all ({filteredCount.toLocaleString()})
+          </Button>
+          <Button variant="secondary" onClick={handleExportJSON} size="sm">
+            ↓ JSON ({filteredCount.toLocaleString()})
           </Button>
         </div>
       </div>
