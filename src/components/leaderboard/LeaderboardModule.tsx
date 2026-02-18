@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { Badge, Select, EmptyState } from '../common';
 import { formatNumber } from '../../utils/formatting';
 import { LEADERBOARD_LAYOUT } from '../../constants/leaderboard';
-import type { CompetitionRecord, AgeClass, BowType, Gender } from '../../types';
+import type { CompetitionRecord, AgeClass, BowType } from '../../types';
 import type { CategoryConfig, DistanceConfig } from '../../constants/leaderboard';
 
 // ── TYPES ───────────────────────────────────────────────────────────────────
@@ -11,6 +11,33 @@ interface RankedEntry {
   rank: number;
   record: CompetitionRecord;
 }
+
+// ── AGE CLASS INCLUSION RULES ────────────────────────────────────────────────
+//
+// Age classes work as handicap groups: a result from a younger/older class
+// counts upward through the age ladder.
+//
+// Youth (U = under age limit):
+//   U13 → eligible for U15, U18, U21, Adult
+//   U15 → eligible for U18, U21, Adult
+//   U18 → eligible for U21, Adult
+//   U21 → eligible for Adult
+//
+// Veterans (+ = age 50 and above):
+//   +70 → eligible for +60, +50, Adult
+//   +60 → eligible for +50, Adult
+//   +50 → eligible for Adult
+
+const AGE_CLASS_INCLUDES: Record<AgeClass, AgeClass[]> = {
+  'Adult': ['Adult', 'U21', 'U18', 'U15', 'U13', '+50', '+60', '+70'],
+  'U21':   ['U21',  'U18', 'U15', 'U13'],
+  'U18':   ['U18',  'U15', 'U13'],
+  'U15':   ['U15',  'U13'],
+  'U13':   ['U13'],
+  '+50':   ['+50',  '+60', '+70'],
+  '+60':   ['+60',  '+70'],
+  '+70':   ['+70'],
+};
 
 // ── HELPERS ─────────────────────────────────────────────────────────────────
 
@@ -42,8 +69,25 @@ function categoryId(cat: CategoryConfig): string {
   return `${cat.ageClass}-${cat.gender}-${cat.bowType}`.replace(/[^a-zA-Z0-9]/g, '-');
 }
 
+// "Adult" is implicit — omit from label when age is Adult.
 function categoryLabel(cat: CategoryConfig): string {
-  return `${cat.bowType} ${cat.ageClass} ${cat.gender}`;
+  const age = cat.ageClass !== 'Adult' ? ` ${cat.ageClass}` : '';
+  return `${cat.bowType}${age} ${cat.gender}`;
+}
+
+/** Whether a category has any records in the selected year, using inclusion rules. */
+function categoryHasData(
+  cat: CategoryConfig,
+  records: CompetitionRecord[],
+  year: string,
+): boolean {
+  const eligibleAges = AGE_CLASS_INCLUDES[cat.ageClass];
+  return records.some(r =>
+    eligibleAges.includes(r['Age Class']) &&
+    r.Gender      === cat.gender  &&
+    r['Bow Type'] === cat.bowType &&
+    r.Date.startsWith(year)
+  );
 }
 
 /** Compute seasonal-best ranking for one distance within a category. */
@@ -53,14 +97,17 @@ function computeRanking(
   cat: CategoryConfig,
   dist: DistanceConfig,
 ): RankedEntry[] {
+  const eligibleAges = AGE_CLASS_INCLUDES[cat.ageClass];
+
   const filtered = records.filter(r =>
-    r['Age Class'] === cat.ageClass &&
-    r.Gender       === cat.gender   &&
-    r['Bow Type']  === cat.bowType  &&
+    eligibleAges.includes(r['Age Class']) &&
+    r.Gender      === cat.gender  &&
+    r['Bow Type'] === cat.bowType &&
     r['Shooting Exercise'] === dist.key &&
     r.Date.startsWith(year)
   );
 
+  // Keep best result per athlete
   const bestMap = new Map<string, CompetitionRecord>();
   for (const r of filtered) {
     if (!bestMap.has(r.Athlete) || r.Result > bestMap.get(r.Athlete)!.Result) {
@@ -68,6 +115,7 @@ function computeRanking(
     }
   }
 
+  // Sort descending; assign ranks (ties share the same rank number)
   const sorted = [...bestMap.values()].sort((a, b) => b.Result - a.Result);
   let rank = 1;
   return sorted.map((r, i) => {
@@ -78,10 +126,11 @@ function computeRanking(
 
 // ── DISTANCE TABLE ───────────────────────────────────────────────────────────
 
-const DistanceTable: React.FC<{ dist: DistanceConfig; entries: RankedEntry[] }> = ({
-  dist,
-  entries,
-}) => (
+const DistanceTable: React.FC<{
+  dist: DistanceConfig;
+  entries: RankedEntry[];
+  categoryAgeClass: AgeClass;
+}> = ({ dist, entries, categoryAgeClass }) => (
   <div className="mb-6">
     <div className="flex items-center gap-2 mb-2">
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
@@ -104,8 +153,10 @@ const DistanceTable: React.FC<{ dist: DistanceConfig; entries: RankedEntry[] }> 
         </thead>
         <tbody className="bg-white divide-y divide-gray-50">
           {entries.map(({ rank, record }) => (
-            <tr key={record._id ?? `${record.Athlete}-${record.Date}`}
-                className="hover:bg-blue-50 transition-colors">
+            <tr
+              key={record._id ?? `${record.Athlete}-${record.Date}`}
+              className="hover:bg-blue-50 transition-colors"
+            >
               <td className="px-3 py-2 w-10">
                 <span className={RANK_STYLE[rank] ?? 'text-gray-500 font-medium text-sm'}>
                   {rank}
@@ -113,6 +164,12 @@ const DistanceTable: React.FC<{ dist: DistanceConfig; entries: RankedEntry[] }> 
               </td>
               <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
                 {record.Athlete}
+                {/* Show the athlete's actual age class when they appear in a higher category */}
+                {record['Age Class'] !== categoryAgeClass && (
+                  <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${AGE_COLOR[record['Age Class']]}`}>
+                    {record['Age Class']}
+                  </span>
+                )}
               </td>
               <td className="px-3 py-2">
                 <Badge color="blue">{record.Club}</Badge>
@@ -153,6 +210,7 @@ const CategorySection: React.FC<{
   if (distancesWithData.length === 0) return null;
 
   const id = categoryId(cat);
+  const isAdult = cat.ageClass === 'Adult';
 
   return (
     <section id={id} className="mb-10 scroll-mt-20">
@@ -160,22 +218,31 @@ const CategorySection: React.FC<{
         <span className="text-2xl" aria-hidden="true">{BOW_ICON[cat.bowType]}</span>
         <div>
           <h2 className="text-lg font-bold text-gray-900">
-            {cat.bowType} · {cat.ageClass} · {cat.gender}
+            {cat.bowType}{!isAdult ? ` · ${cat.ageClass}` : ''} · {cat.gender}
           </h2>
-          <span className={`inline-block mt-0.5 px-2 py-0.5 rounded text-xs font-semibold ${AGE_COLOR[cat.ageClass]}`}>
-            {cat.ageClass}
-          </span>
+          {!isAdult && (
+            <span className={`inline-block mt-0.5 px-2 py-0.5 rounded text-xs font-semibold ${AGE_COLOR[cat.ageClass]}`}>
+              {cat.ageClass}
+            </span>
+          )}
         </div>
       </div>
 
       {distancesWithData.map(({ dist, entries }) => (
-        <DistanceTable key={dist.key} dist={dist} entries={entries} />
+        <DistanceTable
+          key={dist.key}
+          dist={dist}
+          entries={entries}
+          categoryAgeClass={cat.ageClass}
+        />
       ))}
     </section>
   );
 };
 
 // ── QUICK-JUMP NAV ───────────────────────────────────────────────────────────
+// Pills are derived from LEADERBOARD_LAYOUT order (filter preserves it),
+// so they appear in the same order as the sections on the page.
 
 const QuickJump: React.FC<{
   categories: CategoryConfig[];
@@ -183,14 +250,7 @@ const QuickJump: React.FC<{
   year: string;
 }> = ({ categories, records, year }) => {
   const active = useMemo(() =>
-    categories.filter(cat =>
-      records.some(r =>
-        r['Age Class'] === cat.ageClass &&
-        r.Gender       === cat.gender   &&
-        r['Bow Type']  === cat.bowType  &&
-        r.Date.startsWith(year)
-      )
-    ),
+    categories.filter(cat => categoryHasData(cat, records, year)),
     [categories, records, year]
   );
 
