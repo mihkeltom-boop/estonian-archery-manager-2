@@ -68,7 +68,7 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <ToastContainer />
 
-      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
+      <header className="print:hidden bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-xl shrink-0">🏹</div>
@@ -86,7 +86,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <TabNav current={tab} onNavigate={setTab} />
+      <div className="print:hidden"><TabNav current={tab} onNavigate={setTab} /></div>
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
         {loading && (
@@ -111,7 +111,7 @@ const App: React.FC = () => {
         {!loading && !error && tab === 'leaderboard' && <LeaderboardModule records={records} />}
       </main>
 
-      <footer className="bg-white border-t border-gray-200 mt-auto">
+      <footer className="print:hidden bg-white border-t border-gray-200 mt-auto">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between text-xs text-gray-400">
           <span>Estonian Archery Federation · Results Viewer</span>
           <span className="hidden sm:block">⚡ Fast · ✅ {records.length} records loaded</span>

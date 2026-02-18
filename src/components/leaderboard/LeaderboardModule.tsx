@@ -213,7 +213,8 @@ const CategorySection: React.FC<{
   const isAdult = cat.ageClass === 'Adult';
 
   return (
-    <section id={id} className="mb-10 scroll-mt-20">
+    // Adult sections get a page-break in print so each bow×gender group starts on a new page
+    <section id={id} className={`mb-10 scroll-mt-20 ${isAdult ? 'print:break-before-page' : ''}`}>
       <div className="flex items-center gap-3 mb-4 pb-2 border-b-2 border-gray-200">
         <span className="text-2xl" aria-hidden="true">{BOW_ICON[cat.bowType]}</span>
         <div>
@@ -270,7 +271,9 @@ const QuickJump: React.FC<{
   records: CompetitionRecord[];
   year: string;
 }> = ({ categories, records, year }) => {
-  const scrollTo = useCallback((id: string) => {
+  // Smooth-scroll on click; href="#id" keeps links working in exported PDF
+  const handleClick = useCallback((id: string, e: React.MouseEvent) => {
+    e.preventDefault();
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
@@ -295,45 +298,45 @@ const QuickJump: React.FC<{
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
         Jump to category
       </p>
-      {/* Horizontally scrollable so it works on small screens */}
-      <div className="overflow-x-auto pb-2">
-        <div className="flex gap-2 min-w-max">
+      {/* Horizontally scrollable on screen; wraps naturally in print */}
+      <div className="overflow-x-auto print:overflow-visible pb-2">
+        <div className="flex gap-2 min-w-max print:min-w-0 print:flex-wrap">
           {columns.map(col => {
             const adultCat  = col.cats.find(c => c.ageClass === 'Adult');
             const otherCats = col.cats.filter(c => c.ageClass !== 'Adult');
+            const colKey    = `${col.bowType}-${col.gender}`;
 
             return (
-              <div
-                key={`${col.bowType}-${col.gender}`}
-                className="flex flex-col gap-1 w-24"
-              >
-                {/* Column header — Adult category */}
+              <div key={colKey} className="flex flex-col gap-1 w-24">
+                {/* Column header — Adult category (or inactive label if no Adult data) */}
                 {adultCat ? (
-                  <button
-                    onClick={() => scrollTo(categoryId(adultCat))}
-                    className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg
-                      text-xs font-semibold transition-colors ${GENDER_HEADER_COLOR[col.gender]}`}
+                  <a
+                    href={`#${categoryId(adultCat)}`}
+                    onClick={e => handleClick(categoryId(adultCat), e)}
+                    className={`flex items-center justify-center px-2 py-2 rounded-lg
+                      text-xs font-semibold transition-colors no-underline
+                      ${GENDER_HEADER_COLOR[col.gender]}`}
                   >
-                    {BOW_ICON[col.bowType]} {col.gender}
-                  </button>
+                    {col.bowType} {col.gender}
+                  </a>
                 ) : (
-                  /* No Adult data but other ages exist — show label only */
-                  <div className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg
+                  <div className={`flex items-center justify-center px-2 py-2 rounded-lg
                     text-xs font-semibold ${GENDER_EMPTY_COLOR[col.gender]}`}>
-                    {BOW_ICON[col.bowType]} {col.gender}
+                    {col.bowType} {col.gender}
                   </div>
                 )}
 
-                {/* Age-class sub-pills */}
+                {/* Age-class sub-links */}
                 {otherCats.map(cat => (
-                  <button
+                  <a
                     key={categoryId(cat)}
-                    onClick={() => scrollTo(categoryId(cat))}
+                    href={`#${categoryId(cat)}`}
+                    onClick={e => handleClick(categoryId(cat), e)}
                     className={`flex items-center justify-center px-2 py-1 rounded text-xs font-medium
-                      transition-opacity hover:opacity-75 ${AGE_COLOR[cat.ageClass]}`}
+                      no-underline transition-opacity hover:opacity-75 ${AGE_COLOR[cat.ageClass]}`}
                   >
                     {cat.ageClass}
-                  </button>
+                  </a>
                 ))}
               </div>
             );
@@ -379,8 +382,16 @@ const LeaderboardModule: React.FC<{ records: CompetitionRecord[] }> = ({ records
 
   return (
     <div className="fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      {/* Print-only document title (hidden on screen) */}
+      <div className="hidden print:block mb-6 pb-4 border-b-2 border-gray-300">
+        <h1 className="text-2xl font-bold text-gray-900">Estonian Archery Leaderboard {selectedYear}</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Seasonal best results per athlete · {new Date().toLocaleDateString('et-EE')}
+        </p>
+      </div>
+
+      {/* Header (hidden in print — replaced by print title above) */}
+      <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Leaderboard</h2>
           <p className="text-gray-500 mt-1 text-sm">
@@ -395,6 +406,14 @@ const LeaderboardModule: React.FC<{ records: CompetitionRecord[] }> = ({ records
             options={yearOptions}
             className="w-28"
           />
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+              bg-white border border-gray-300 text-gray-600
+              hover:bg-gray-50 hover:border-gray-400 transition-colors"
+          >
+            ↓ Export PDF
+          </button>
         </div>
       </div>
 

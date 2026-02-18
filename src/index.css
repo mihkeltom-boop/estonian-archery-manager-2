@@ -16,3 +16,11 @@ body {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ── PRINT / PDF EXPORT ────────────────────────────────────────────────────── */
+@media print {
+  /* Repeat table headers on each page */
+  thead { display: table-header-group; }
+  /* Prevent rows from splitting across pages */
+  tr    { break-inside: avoid; }
+}
