@@ -1,5 +1,3 @@
-import type { FileValidationResult } from '../types';
-
 export const sanitizeInput = (input: string | null | undefined): string => {
   if (!input) return '';
   return String(input)
@@ -8,15 +6,6 @@ export const sanitizeInput = (input: string | null | undefined): string => {
     .replace(/javascript:/gi, '');
 };
 
-export const validateFile = (file: File): FileValidationResult => {
-  if (!file.name.toLowerCase().endsWith('.csv'))
-    return { valid: false, error: 'Only CSV files are allowed' };
-
-  if (file.size > 10 * 1024 * 1024)
-    return { valid: false, error: `File too large: ${(file.size / 1024 / 1024).toFixed(1)} MB (max 10 MB)` };
-
-  return { valid: true };
-};
 
 export const sanitizeFilename = (name: string): string =>
   name.replace(/\.\./g, '').replace(/[\/\\<>:"|?*]/g, '').slice(0, 255);

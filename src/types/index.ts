@@ -3,7 +3,7 @@
 export type BowType = 'Recurve' | 'Compound' | 'Barebow' | 'Longbow';
 export type AgeClass = 'Adult' | 'U21' | 'U18' | 'U15' | 'U13' | '+50' | '+60' | '+70';
 export type Gender = 'Men' | 'Women';
-export type Step = 'import' | 'review' | 'database' | 'logs';
+export type Step = 'database';
 
 // ── CORE RECORD ────────────────────────────────────────────────────────────
 
@@ -27,10 +27,10 @@ export interface CompetitionRecord {
   'Shooting Exercise': string;
   Result: number;
   Competition: string;
-  _sourceFile: string;
-  _corrections: Correction[];
-  _needsReview: boolean;
-  _confidence: number;
+  _sourceFile?: string;
+  _corrections?: Correction[];
+  _needsReview?: boolean;
+  _confidence?: number;
   _originalData?: Record<string, string>;
 }
 
@@ -53,9 +53,3 @@ export interface SortState {
   direction: 'asc' | 'desc';
 }
 
-// ── FILE VALIDATION ────────────────────────────────────────────────────────
-
-export interface FileValidationResult {
-  valid: boolean;
-  error?: string;
-}
