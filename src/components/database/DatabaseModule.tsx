@@ -16,6 +16,7 @@ const COLUMNS = [
   { key: 'Age Class',         label: 'Age Class' },
   { key: 'Gender',            label: 'Gender' },
   { key: 'Shooting Exercise', label: 'Distance' },
+  { key: 'Target Face',       label: 'Face' },
   { key: 'Result',            label: 'Result' },
   { key: 'Competition',       label: 'Competition' },
 ] as const;
@@ -315,6 +316,7 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
                       <Badge color={GENDER_COLOR[r.Gender] ?? 'gray'}>{r.Gender}</Badge>
                     </td>
                     <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{r['Shooting Exercise']}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap font-mono text-xs">{r['Target Face'] || '—'}</td>
                     <td className="px-4 py-3"><ResultCell value={r.Result} /></td>
                     <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{r.Competition}</td>
                   </tr>

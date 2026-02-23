@@ -1,5 +1,6 @@
 import type { BowType, AgeClass, Gender, Correction } from '../types';
 import { BOW_TRANSLATIONS, ESTONIAN_HEADERS } from '../constants/clubs';
+import { getTargetFace } from '../constants/targetFaces';
 import { getClubs } from './clubStore';
 import { capitalizeWords, formatDate } from './formatting';
 import { validateScore } from './scoreValidation';
@@ -212,10 +213,14 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
             needsReview = true;
           }
 
+          const ageClass = extractAgeClass(ageRaw, bowClass);
+          const gender   = extractGender(genderRaw, bowClass);
+
           return {
             _id: i + 1, Date: date, Athlete: athlete, Club: clubMatch.code,
-            'Bow Type': bowType, 'Age Class': extractAgeClass(ageRaw, bowClass),
-            Gender: extractGender(genderRaw, bowClass), 'Shooting Exercise': distance,
+            'Bow Type': bowType, 'Age Class': ageClass,
+            Gender: gender, 'Shooting Exercise': distance,
+            'Target Face': getTargetFace(bowType, ageClass, gender, distance),
             Result: result, Competition: competition, _sourceFile: sourceFile,
             _corrections: corrections, _needsReview: needsReview,
             _confidence: clubMatch.confidence, _originalData: rawRow,

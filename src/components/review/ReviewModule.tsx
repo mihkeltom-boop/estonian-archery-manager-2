@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Button, Card, Badge, ConfidenceBadge } from '../common';
 import ClubAutocomplete from '../common/ClubAutocomplete';
-import type { CompetitionRecord } from '../../types';
+import { getTargetFace } from '../../constants/targetFaces';
+import type { CompetitionRecord, BowType, AgeClass, Gender } from '../../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -305,15 +306,24 @@ const TicketCard: React.FC<TicketCardProps> = ({
 
   const issueValue = fieldValues[ticket.field] ?? ticket.suggestedValue;
 
+  // Computed target face — updates live as the user edits bow type / age / gender / exercise
+  const computedFace = useMemo(() =>
+    getTargetFace(
+      fieldValues['Bow Type'] as BowType,
+      fieldValues['Age Class'] as AgeClass,
+      fieldValues['Gender']    as Gender,
+      fieldValues['Shooting Exercise'] ?? '',
+    ), [fieldValues]);
+
   // Keyboard shortcuts — only on active cards
   useEffect(() => {
     if (!isActive || decision) return;
     const handler = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).matches('input, select, textarea')) {
-        if (e.key === 'Enter') { e.preventDefault(); onApprove(issueValue, fieldValues); }
+        if (e.key === 'Enter') { e.preventDefault(); onApprove(issueValue, { ...fieldValues, 'Target Face': computedFace }); }
         return;
       }
-      if (e.key === 'Enter') { e.preventDefault(); onApprove(issueValue, fieldValues); }
+      if (e.key === 'Enter') { e.preventDefault(); onApprove(issueValue, { ...fieldValues, 'Target Face': computedFace }); }
       else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); onReject(); }
     };
     window.addEventListener('keydown', handler);
@@ -466,6 +476,15 @@ const TicketCard: React.FC<TicketCardProps> = ({
           </div>
         )}
 
+        {/* Computed target face — updates live when bow type / age / gender / exercise change */}
+        {computedFace && (
+          <div className="flex items-center gap-3 px-3 py-2.5 bg-blue-50 border border-blue-100 rounded-lg">
+            <span className="text-xs font-semibold text-blue-500 uppercase tracking-wide">Target Face</span>
+            <span className="text-sm font-mono font-bold text-blue-700">{computedFace}</span>
+            <span className="text-xs text-blue-400 ml-auto">auto-computed</span>
+          </div>
+        )}
+
         {/* Bulk: show other affected records */}
         {isBulk && (
           <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -512,7 +531,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
 
       {/* Actions */}
       <div className="bg-gray-50 border-t border-gray-200 px-5 py-3.5 flex gap-3 flex-wrap items-center">
-        <Button ref={approveRef} onClick={() => onApprove(issueValue, fieldValues)}>
+        <Button ref={approveRef} onClick={() => onApprove(issueValue, { ...fieldValues, 'Target Face': computedFace })}>
           {ticket.method === 'validation'
             ? `✓ Keep record${isBulk ? `s (${ticket.recordIds.length})` : ''}`
             : `✓ Apply to ${isBulk ? `all ${ticket.recordIds.length} records` : 'record'}`}
@@ -745,7 +764,10 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
   };
 
   const transitionToConsistency = (recs: CompetitionRecord[]) => {
-    const autoFixed = autoFixAgeClasses(recs);
+    const autoFixed = autoFixAgeClasses(recs).map(r => ({
+      ...r,
+      'Target Face': getTargetFace(r['Bow Type'], r['Age Class'], r.Gender, r['Shooting Exercise']),
+    }));
     const cTickets = buildConsistencyTickets(autoFixed);
     if (cTickets.length === 0) {
       onComplete(autoFixed);
@@ -757,7 +779,11 @@ const ReviewModule: React.FC<Props> = ({ records, onComplete }) => {
   };
 
   const handleConsistencyFinalise = (allDecisions: Record<string, DecisionEntry>) => {
-    const finalRecords = applyConsistencyFixes(intermediateRecords, consistencyTickets, allDecisions);
+    const finalRecords = applyConsistencyFixes(intermediateRecords, consistencyTickets, allDecisions)
+      .map(r => ({
+        ...r,
+        'Target Face': getTargetFace(r['Bow Type'], r['Age Class'], r.Gender, r['Shooting Exercise']),
+      }));
     onComplete(finalRecords);
   };
 
