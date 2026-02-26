@@ -25,6 +25,7 @@ export interface CompetitionRecord {
   'Age Class': AgeClass;
   Gender: Gender;
   'Shooting Exercise': string;
+  'Target Face'?: string;
   Result: number;
   Competition: string;
   _sourceFile?: string;

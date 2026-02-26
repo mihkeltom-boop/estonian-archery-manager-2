@@ -90,12 +90,13 @@ function categoryHasData(
   );
 }
 
-/** Compute seasonal-best ranking for one distance within a category. */
+/** Compute seasonal-best ranking for one distance (and optionally one face size) within a category. */
 function computeRanking(
   records: CompetitionRecord[],
   year: string,
   cat: CategoryConfig,
   dist: DistanceConfig,
+  targetFace?: string,
 ): RankedEntry[] {
   const eligibleAges = AGE_CLASS_INCLUDES[cat.ageClass];
 
@@ -104,7 +105,8 @@ function computeRanking(
     r.Gender      === cat.gender  &&
     r['Bow Type'] === cat.bowType &&
     r['Shooting Exercise'] === dist.key &&
-    r.Date.startsWith(year)
+    r.Date.startsWith(year) &&
+    (targetFace === undefined || r['Target Face'] === targetFace)
   );
 
   // Keep best result per athlete
@@ -130,12 +132,18 @@ const DistanceTable: React.FC<{
   dist: DistanceConfig;
   entries: RankedEntry[];
   categoryAgeClass: AgeClass;
-}> = ({ dist, entries, categoryAgeClass }) => (
+  faceLabel?: string;
+}> = ({ dist, entries, categoryAgeClass, faceLabel }) => (
   <div className="mb-6">
     <div className="flex items-center gap-2 mb-2">
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
         {dist.label}
       </span>
+      {faceLabel && (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+          {faceLabel}
+        </span>
+      )}
       <span className="text-xs text-gray-400">{entries.length} athlete{entries.length !== 1 ? 's' : ''}</span>
     </div>
 
@@ -200,12 +208,44 @@ const CategorySection: React.FC<{
   records: CompetitionRecord[];
   year: string;
 }> = ({ cat, records, year }) => {
-  const distancesWithData = useMemo(() =>
-    cat.distances
-      .map(dist => ({ dist, entries: computeRanking(records, year, cat, dist) }))
-      .filter(({ entries }) => entries.length > 0),
-    [cat, records, year]
-  );
+  const distancesWithData = useMemo(() => {
+    const eligibleAges = AGE_CLASS_INCLUDES[cat.ageClass];
+
+    return cat.distances.flatMap(dist => {
+      // Collect distinct target face sizes present in the data for this category + distance
+      const faces = [
+        ...new Set(
+          records
+            .filter(r =>
+              eligibleAges.includes(r['Age Class']) &&
+              r.Gender               === cat.gender  &&
+              r['Bow Type']          === cat.bowType &&
+              r['Shooting Exercise'] === dist.key    &&
+              r.Date.startsWith(year)                &&
+              r['Target Face']       !== undefined
+            )
+            .map(r => r['Target Face'] as string)
+        ),
+      ].sort();
+
+      if (faces.length <= 1) {
+        // No face data, or all records share one face → single table (backward-compatible)
+        const entries = computeRanking(records, year, cat, dist);
+        return entries.length > 0
+          ? [{ dist, entries, faceLabel: undefined as string | undefined }]
+          : [];
+      }
+
+      // Multiple distinct face sizes → one ranked sub-table per face
+      return faces
+        .map(face => ({
+          dist,
+          entries: computeRanking(records, year, cat, dist, face),
+          faceLabel: face,
+        }))
+        .filter(item => item.entries.length > 0);
+    });
+  }, [cat, records, year]);
 
   if (distancesWithData.length === 0) return null;
 
@@ -229,12 +269,13 @@ const CategorySection: React.FC<{
         </div>
       </div>
 
-      {distancesWithData.map(({ dist, entries }) => (
+      {distancesWithData.map(({ dist, entries, faceLabel }) => (
         <DistanceTable
-          key={dist.key}
+          key={`${dist.key}-${faceLabel ?? ''}`}
           dist={dist}
           entries={entries}
           categoryAgeClass={cat.ageClass}
+          faceLabel={faceLabel}
         />
       ))}
     </section>
