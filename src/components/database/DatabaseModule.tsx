@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button, Card, Badge, StatCard, Input, Select, EmptyState } from '../common';
 import { useDatabaseState } from '../../hooks/useDatabaseState';
 import { exportToCSV, downloadCSV } from '../../utils/security';
@@ -64,7 +64,33 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
 
   // Unique option lists for dropdowns
   const clubOptions      = uniqueValues('Club').map(v => ({ value: v, label: v }));
-  const distanceOptions  = uniqueValuesByCount('Shooting Exercise').map(v => ({ value: v, label: v }));
+  // Build distance dropdown: append face in brackets only when a distance has multiple face sizes
+  const distanceOptions = useMemo(() => {
+    const exerciseCounts = new Map<string, number>();
+    const facesPerExercise = new Map<string, Set<string>>();
+    for (const r of records) {
+      const ex = r['Shooting Exercise'];
+      if (!ex) continue;
+      exerciseCounts.set(ex, (exerciseCounts.get(ex) || 0) + 1);
+      if (!facesPerExercise.has(ex)) facesPerExercise.set(ex, new Set());
+      if (r['Target Face']) facesPerExercise.get(ex)!.add(r['Target Face']);
+    }
+
+    const opts: { value: string; label: string }[] = [];
+    const sorted = [...exerciseCounts.entries()].sort((a, b) => b[1] - a[1]);
+
+    for (const [exercise] of sorted) {
+      const faces = facesPerExercise.get(exercise) ?? new Set();
+      if (faces.size <= 1) {
+        opts.push({ value: exercise, label: exercise });
+      } else {
+        for (const face of [...faces].sort()) {
+          opts.push({ value: `${exercise}|${face}`, label: `${exercise} (${face})` });
+        }
+      }
+    }
+    return opts;
+  }, [records]);
 
   // ── Infinite scroll via IntersectionObserver ──
   const sentinelRef = useRef<HTMLDivElement>(null);

@@ -99,7 +99,14 @@ function applyFilters(records: CompetitionRecord[], f: FilterState): Competition
   if (f.bowType)     d = d.filter(r => r['Bow Type'] === f.bowType);
   if (f.ageClass)    d = d.filter(r => r['Age Class'] === f.ageClass);
   if (f.gender)      d = d.filter(r => r.Gender === f.gender);
-  if (f.distance)    d = d.filter(r => r['Shooting Exercise'] === f.distance);
+  if (f.distance) {
+    if (f.distance.includes('|')) {
+      const [exercise, face] = f.distance.split('|');
+      d = d.filter(r => r['Shooting Exercise'] === exercise && r['Target Face'] === face);
+    } else {
+      d = d.filter(r => r['Shooting Exercise'] === f.distance);
+    }
+  }
   if (f.sourceFile)  d = d.filter(r => r._sourceFile === f.sourceFile);
 
   if (f.seasonalBest) {
