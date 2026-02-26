@@ -24,7 +24,7 @@ function parseDistances(exercise: string): number[] {
  * Returns the WA target face size for one distance component within a round.
  *
  * Key rules:
- *  • 18m indoor: Compound → 40cm; Recurve/BB/LB U13/U15 → 60cm; U18+ → 40cm
+ *  • 18m indoor: Compound → 40cm; Recurve/BB/LB U13/U15 → 60cm; U18 → 80cm; Adult/U21/Masters → 40cm
  *  • 25m indoor: all types/ages → 60cm
  *  • Outdoor Compound: always 80cm (6-ring face)
  *  • Outdoor Barebow:  always 122cm
@@ -45,7 +45,9 @@ function faceForDistance(
   // ── Indoor 18m ──────────────────────────────────────────────────────────────
   if (distanceM === 18) {
     if (bow === 'Compound') return '40cm';
-    return (age === 'U13' || age === 'U15') ? '60cm' : '40cm';
+    if (age === 'U13' || age === 'U15') return '60cm';
+    if (age === 'U18') return '80cm';
+    return '40cm'; // Adult, U21, Masters
   }
 
   // ── Indoor 25m ──────────────────────────────────────────────────────────────
@@ -82,6 +84,7 @@ function faceForDistance(
  *   Recurve Adult Men  "90m+70m+50m+30m"      → "122cm + 122cm + 80cm + 80cm"
  *   Recurve U18 Women  "60m+50m+40m+30m"      → "122cm + 122cm + 80cm + 80cm"
  *   Recurve Adult Men  "2x18m"                → "40cm"
+ *   Recurve U18 Any    "18m"                  → "80cm"
  *   Recurve U15 Any    "18m"                  → "60cm"
  *
  * Returns "" if the exercise string cannot be parsed.
