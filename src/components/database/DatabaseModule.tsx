@@ -82,7 +82,8 @@ const DatabaseModule: React.FC<Props> = ({ records }) => {
     for (const [exercise] of sorted) {
       const faces = facesPerExercise.get(exercise) ?? new Set();
       if (faces.size <= 1) {
-        opts.push({ value: exercise, label: exercise });
+        const face = [...faces][0];
+        opts.push({ value: exercise, label: face ? `${exercise} (${face})` : exercise });
       } else {
         for (const face of [...faces].sort()) {
           opts.push({ value: `${exercise}|${face}`, label: `${exercise} (${face})` });
