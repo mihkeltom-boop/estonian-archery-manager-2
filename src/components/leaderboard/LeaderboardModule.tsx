@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { Badge, Select, EmptyState } from '../common';
 import { formatNumber } from '../../utils/formatting';
 import { LEADERBOARD_LAYOUT } from '../../constants/leaderboard';
@@ -493,6 +493,35 @@ const QuickJump: React.FC<{
   );
 };
 
+// ── SCROLL TO TOP ────────────────────────────────────────────────────────────
+
+const ScrollToTop: React.FC = () => {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 400);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      aria-label="Scroll to top"
+      className="fixed bottom-6 right-6 z-30 print:hidden
+        w-10 h-10 rounded-full bg-gray-800 text-white shadow-lg
+        flex items-center justify-center
+        hover:bg-gray-700 active:bg-gray-900 transition-colors"
+    >
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fillRule="evenodd" d="M10 3a1 1 0 01.707.293l6 6a1 1 0 01-1.414 1.414L10 5.414l-5.293 5.293a1 1 0 01-1.414-1.414l6-6A1 1 0 0110 3z" clipRule="evenodd" />
+      </svg>
+    </button>
+  );
+};
+
 // ── MAIN MODULE ──────────────────────────────────────────────────────────────
 
 const LeaderboardModule: React.FC<{ records: CompetitionRecord[] }> = ({ records }) => {
@@ -585,6 +614,8 @@ const LeaderboardModule: React.FC<{ records: CompetitionRecord[] }> = ({ records
           </div>
         </>
       )}
+
+      <ScrollToTop />
     </div>
   );
 };
