@@ -48,14 +48,25 @@ const App: React.FC = () => {
   const [tab, setTab]           = useState<AppTab>('database');
 
   useEffect(() => {
-    fetch('/data.json')
+    // Load the manifest listing all data files, then fetch each one in
+    // parallel and merge into a single records array.
+    fetch('/data/index.json')
       .then(res => {
-        if (!res.ok) throw new Error(`Failed to load data (HTTP ${res.status})`);
-        return res.json() as Promise<CompetitionRecord[]>;
+        if (!res.ok) throw new Error(`Failed to load data index (HTTP ${res.status})`);
+        return res.json() as Promise<string[]>;
       })
-      .then(data => {
-        setRecords(data);
-      })
+      .then(files =>
+        Promise.all(
+          files.map(file =>
+            fetch(`/data/${file}`)
+              .then(res => {
+                if (!res.ok) throw new Error(`Failed to load ${file} (HTTP ${res.status})`);
+                return res.json() as Promise<CompetitionRecord[]>;
+              })
+          )
+        )
+      )
+      .then(arrays => setRecords(arrays.flat()))
       .catch(err => {
         const message = err instanceof Error ? err.message : 'Unknown error';
         setError(message);
