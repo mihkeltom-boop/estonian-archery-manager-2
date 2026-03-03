@@ -64,6 +64,47 @@ const RANK_BADGE: Record<number, string> = {
   3: 'bg-amber-600  text-white',
 };
 
+const CLUB_NAMES: Record<string, string> = {
+  BH:   'Baltic Hunter SC',
+  JVI:  'Järvakandi Ilves',
+  KSK:  'Kajamaa Spordiklubi',
+  KVK:  'Kagu Vibuklubi',
+  LVL:  'Lääne Vibulaskjad',
+  MAG:  'Mägilased',
+  NS:   'NS Archery Club',
+  PVM:  'Pärnu Meelis',
+  SAG:  'Sagittarius',
+  SJK:  'Suure-Jaani VK',
+  SMA:  'Saaremaa Vibuklubi',
+  STR:  'STORM SK',
+  SVK:  'Saarde Vibuklubi',
+  TL:   'Tallinna Vibukool',
+  TLVK: 'Tallinna Vibukool',
+  TVK:  'Tartu Vibuklubi',
+  TVSK: 'Tartu Valla Spordiklubi',
+  TYRI: 'Türi Vibukool',
+  VVK:  'Vooremaa Vibuklubi',
+  VVVK: 'Vana-Võidu Vibuklubi',
+};
+
+const ClubBadge: React.FC<{ club: string }> = ({ club }) => {
+  const fullName = CLUB_NAMES[club];
+  return (
+    <span className="relative group/club inline-block">
+      <Badge color="blue">{club}</Badge>
+      {fullName && (
+        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5
+          whitespace-nowrap rounded bg-gray-900 px-2.5 py-1 text-xs text-white shadow-lg
+          opacity-0 group-hover/club:opacity-100 transition-opacity z-20">
+          {fullName}
+          <span className="absolute left-1/2 top-full -translate-x-1/2
+            border-4 border-transparent border-t-gray-900" />
+        </span>
+      )}
+    </span>
+  );
+};
+
 const COLLAPSE_LIMIT = 8;
 
 function categoryId(cat: CategoryConfig): string {
@@ -162,11 +203,19 @@ const DistanceTable: React.FC<{
       {/* Table — bottom corners stay square when the expand button is present */}
       <div className={`overflow-x-auto border border-gray-200 ${needsCollapse ? 'rounded-t-lg' : 'rounded-lg'}`}>
         <table className="min-w-full text-sm">
+          <colgroup>
+            <col style={{ width: '2.25rem' }} />
+            <col />
+            <col style={{ width: '4.5rem' }} />
+            <col style={{ width: '5rem' }} />
+            <col style={{ width: '6rem' }} />
+            <col />
+          </colgroup>
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
               <th className="px-3 py-2 text-center  text-xs font-semibold text-gray-500 w-8">#</th>
               <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500">Athlete</th>
-              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 w-16">Club</th>
+              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 w-[4.5rem]">Club</th>
               <th className="px-3 py-2 text-right   text-xs font-semibold text-gray-500 w-20">Score</th>
               <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 w-24 hidden sm:table-cell">Date</th>
               <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 hidden md:table-cell">Competition</th>
@@ -196,8 +245,8 @@ const DistanceTable: React.FC<{
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2.5 w-16">
-                  <Badge color="blue">{record.Club}</Badge>
+                <td className="px-3 py-2.5 w-[4.5rem]">
+                  <ClubBadge club={record.Club} />
                 </td>
                 <td className="px-3 py-2.5 text-right w-20">
                   <span className="font-bold tabular-nums text-gray-900">
@@ -347,6 +396,8 @@ const GENDER_EMPTY_COLOR: Record<Gender, string> = {
   Men:   'bg-blue-100   text-blue-400',
 };
 
+const SUB_AGE_ORDER: AgeClass[] = ['+50', '+60', '+70', 'U21', 'U18', 'U15', 'U13'];
+
 const QuickJump: React.FC<{
   categories: CategoryConfig[];
   records: CompetitionRecord[];
@@ -359,16 +410,15 @@ const QuickJump: React.FC<{
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  // For each bow×gender column collect categories that have data (layout order preserved)
+  // For each bow×gender column collect ALL categories; tag each with hasData
   const columns = useMemo(() =>
     BOW_GENDER_COLUMNS.map(col => {
-      const catsWithData = categories.filter(c =>
-        c.bowType === col.bowType &&
-        c.gender  === col.gender  &&
-        categoryHasData(c, records, year)
+      const colCats = categories.filter(c =>
+        c.bowType === col.bowType && c.gender === col.gender
       );
-      return { ...col, cats: catsWithData };
-    }).filter(col => col.cats.length > 0),
+      const hasAnyData = colCats.some(c => categoryHasData(c, records, year));
+      return { ...col, colCats, hasAnyData };
+    }).filter(col => col.hasAnyData),
     [categories, records, year]
   );
 
@@ -383,42 +433,57 @@ const QuickJump: React.FC<{
       <div className="overflow-x-auto print:overflow-visible pb-2">
         <div className="flex gap-2 min-w-max print:min-w-0 print:flex-wrap">
           {columns.map(col => {
-            const adultCat  = col.cats.find(c => c.ageClass === 'Adult');
-            const otherCats = col.cats.filter(c => c.ageClass !== 'Adult');
+            const adultCat  = col.colCats.find(c => c.ageClass === 'Adult');
+            const adultHasData = adultCat && categoryHasData(adultCat, records, year);
             const colKey    = `${col.bowType}-${col.gender}`;
 
             return (
               <div key={colKey} className="flex flex-col gap-1 w-24">
-                {/* Column header — Adult category (or inactive label if no Adult data) */}
-                {adultCat ? (
+                {/* Column header — Adult category */}
+                {adultHasData ? (
                   <a
                     href={`#${categoryId(adultCat)}`}
                     onClick={e => handleClick(categoryId(adultCat), e)}
-                    className={`flex items-center justify-center px-2 py-2 rounded-lg
+                    className={`flex items-center justify-center h-9 px-2 rounded-lg
                       text-xs font-semibold transition-colors no-underline
                       ${GENDER_HEADER_COLOR[col.gender]}`}
                   >
                     {col.bowType} {col.gender}
                   </a>
                 ) : (
-                  <div className={`flex items-center justify-center px-2 py-2 rounded-lg
+                  <div className={`flex items-center justify-center h-9 px-2 rounded-lg
                     text-xs font-semibold ${GENDER_EMPTY_COLOR[col.gender]}`}>
                     {col.bowType} {col.gender}
                   </div>
                 )}
 
-                {/* Age-class sub-links */}
-                {otherCats.map(cat => (
-                  <a
-                    key={categoryId(cat)}
-                    href={`#${categoryId(cat)}`}
-                    onClick={e => handleClick(categoryId(cat), e)}
-                    className={`flex items-center justify-center px-2 py-1 rounded text-xs font-medium
-                      no-underline transition-opacity hover:opacity-75 ${AGE_COLOR[cat.ageClass]}`}
-                  >
-                    {cat.ageClass}
-                  </a>
-                ))}
+                {/* Age-class sub-links — fixed order, gray when no data */}
+                {SUB_AGE_ORDER.map(ageClass => {
+                  const cat = col.colCats.find(c => c.ageClass === ageClass);
+                  if (!cat) return null;
+                  const hasData = categoryHasData(cat, records, year);
+                  const id = categoryId(cat);
+
+                  return hasData ? (
+                    <a
+                      key={ageClass}
+                      href={`#${id}`}
+                      onClick={e => handleClick(id, e)}
+                      className={`flex items-center justify-center h-7 px-2 rounded text-xs font-medium
+                        no-underline transition-opacity hover:opacity-75 ${AGE_COLOR[ageClass]}`}
+                    >
+                      {ageClass}
+                    </a>
+                  ) : (
+                    <div
+                      key={ageClass}
+                      className={`flex items-center justify-center h-7 px-2 rounded text-xs font-medium
+                        opacity-35 cursor-default ${AGE_COLOR[ageClass]}`}
+                    >
+                      {ageClass}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
