@@ -14,18 +14,27 @@ interface RankedEntry {
 
 // ── AGE CLASS INCLUSION RULES ────────────────────────────────────────────────
 //
-// Each leaderboard section shows only results from athletes registered in that
-// exact age class. The target-face split then handles cases where the same
-// age class competes on different face sizes.
+// Each section applies upward + downward eligibility:
+//   U13 → eligible for U15, U18, U21, Adult
+//   U15 → eligible for U18, U21, Adult
+//   U18 → eligible for U21, Adult
+//   U21 → eligible for Adult
+//   +70 → eligible for +60, +50, Adult
+//   +60 → eligible for +50, Adult
+//   +50 → eligible for Adult
+//
+// Results are additionally filtered by `targetFace` (set per DistanceConfig),
+// so e.g. a Recurve U15 on 60cm face is excluded from the Adult 18m table
+// (which requires 40cm) even though U15 is age-eligible for Adult.
 
 const AGE_CLASS_INCLUDES: Record<AgeClass, AgeClass[]> = {
-  'Adult': ['Adult'],
-  'U21':   ['U21'],
-  'U18':   ['U18'],
-  'U15':   ['U15'],
+  'Adult': ['Adult', 'U21', 'U18', 'U15', 'U13', '+50', '+60', '+70'],
+  'U21':   ['U21',  'U18', 'U15', 'U13'],
+  'U18':   ['U18',  'U15', 'U13'],
+  'U15':   ['U15',  'U13'],
   'U13':   ['U13'],
-  '+50':   ['+50'],
-  '+60':   ['+60'],
+  '+50':   ['+50',  '+60', '+70'],
+  '+60':   ['+60',  '+70'],
   '+70':   ['+70'],
 };
 
@@ -80,15 +89,18 @@ function categoryHasData(
   );
 }
 
-/** Compute seasonal-best ranking for one distance (and optionally one face size) within a category. */
+/** Compute seasonal-best ranking for one distance within a category.
+ *  Uses dist.targetFace when set; faceOverride is only for the auto-split
+ *  path where the face is detected from the data (outdoor multi-face). */
 function computeRanking(
   records: CompetitionRecord[],
   year: string,
   cat: CategoryConfig,
   dist: DistanceConfig,
-  targetFace?: string,
+  faceOverride?: string,
 ): RankedEntry[] {
   const eligibleAges = AGE_CLASS_INCLUDES[cat.ageClass];
+  const face = faceOverride ?? dist.targetFace;
 
   const filtered = records.filter(r =>
     eligibleAges.includes(r['Age Class']) &&
@@ -96,7 +108,7 @@ function computeRanking(
     r['Bow Type'] === cat.bowType &&
     r['Shooting Exercise'] === dist.key &&
     r.Date.startsWith(year) &&
-    (targetFace === undefined || r['Target Face'] === targetFace)
+    (face === undefined || r['Target Face'] === face)
   );
 
   // Keep best result per athlete
@@ -202,7 +214,18 @@ const CategorySection: React.FC<{
     const eligibleAges = AGE_CLASS_INCLUDES[cat.ageClass];
 
     return cat.distances.flatMap(dist => {
-      // Collect distinct target face sizes present in the data for this category + distance
+      // When a specific face is declared in the config, use it directly —
+      // no need to inspect the data for face sizes.
+      if (dist.targetFace !== undefined) {
+        const entries = computeRanking(records, year, cat, dist);
+        return entries.length > 0
+          ? [{ dist, entries, faceLabel: undefined as string | undefined }]
+          : [];
+      }
+
+      // No face specified (outdoor distances) → auto-split by face sizes
+      // present in the data, so e.g. Recurve 50m on 80cm and 122cm each
+      // get their own ranked table.
       const faces = [
         ...new Set(
           records
@@ -219,14 +242,12 @@ const CategorySection: React.FC<{
       ].sort();
 
       if (faces.length <= 1) {
-        // No face data, or all records share one face → single table (backward-compatible)
         const entries = computeRanking(records, year, cat, dist);
         return entries.length > 0
           ? [{ dist, entries, faceLabel: undefined as string | undefined }]
           : [];
       }
 
-      // Multiple distinct face sizes → one ranked sub-table per face
       return faces
         .map(face => ({
           dist,
