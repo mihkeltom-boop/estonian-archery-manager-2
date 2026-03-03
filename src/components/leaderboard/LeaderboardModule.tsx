@@ -58,11 +58,13 @@ const AGE_COLOR: Record<AgeClass, string> = {
   '+70':   'bg-teal-100 text-teal-800',
 };
 
-const RANK_STYLE: Record<number, string> = {
-  1: 'text-yellow-500 font-bold text-base',
-  2: 'text-gray-400  font-bold text-base',
-  3: 'text-amber-600 font-bold text-base',
+const RANK_BADGE: Record<number, string> = {
+  1: 'bg-yellow-400 text-yellow-900',
+  2: 'bg-gray-300   text-gray-700',
+  3: 'bg-amber-600  text-white',
 };
+
+const COLLAPSE_LIMIT = 8;
 
 function categoryId(cat: CategoryConfig): string {
   return `${cat.ageClass}-${cat.gender}-${cat.bowType}`.replace(/[^a-zA-Z0-9]/g, '-');
@@ -135,73 +137,98 @@ const DistanceTable: React.FC<{
   entries: RankedEntry[];
   categoryAgeClass: AgeClass;
   faceLabel?: string;
-}> = ({ dist, entries, categoryAgeClass, faceLabel }) => (
-  <div className="mb-6">
-    <div className="flex items-center gap-2 mb-2">
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-        {dist.label}
-      </span>
-      {faceLabel && (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-          {faceLabel}
-        </span>
-      )}
-      <span className="text-xs text-gray-400">{entries.length} athlete{entries.length !== 1 ? 's' : ''}</span>
-    </div>
+}> = ({ dist, entries, categoryAgeClass, faceLabel }) => {
+  const [expanded, setExpanded] = useState(false);
+  const needsCollapse = entries.length > COLLAPSE_LIMIT;
+  const visible = needsCollapse && !expanded ? entries.slice(0, COLLAPSE_LIMIT) : entries;
 
-    <div className="overflow-x-auto rounded-lg border border-gray-200">
-      <table className="min-w-full divide-y divide-gray-100 text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 w-10">#</th>
-            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Athlete</th>
-            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Club</th>
-            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Result</th>
-            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 hidden sm:table-cell">Date</th>
-            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 hidden md:table-cell">Competition</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-50">
-          {entries.map(({ rank, record }) => (
-            <tr
-              key={record._id ?? `${record.Athlete}-${record.Date}`}
-              className="hover:bg-blue-50 transition-colors"
-            >
-              <td className="px-3 py-2 w-10">
-                <span className={RANK_STYLE[rank] ?? 'text-gray-500 font-medium text-sm'}>
-                  {rank}
-                </span>
-              </td>
-              <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
-                {record.Athlete}
-                {/* Show the athlete's actual age class when they appear in a higher category */}
-                {record['Age Class'] !== categoryAgeClass && (
-                  <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${AGE_COLOR[record['Age Class']]}`}>
-                    {record['Age Class']}
-                  </span>
-                )}
-              </td>
-              <td className="px-3 py-2">
-                <Badge color="blue">{record.Club}</Badge>
-              </td>
-              <td className="px-3 py-2 text-right">
-                <span className="font-bold tabular-nums text-gray-900">
-                  {formatNumber(record.Result)}
-                </span>
-              </td>
-              <td className="px-3 py-2 text-gray-500 whitespace-nowrap hidden sm:table-cell">
-                {record.Date}
-              </td>
-              <td className="px-3 py-2 text-gray-500 hidden md:table-cell truncate max-w-xs">
-                {record.Competition}
-              </td>
+  return (
+    <div className="mb-6">
+      {/* Distance + face pills */}
+      <div className="flex items-center gap-2 mb-2">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+          {dist.label}
+        </span>
+        {faceLabel && (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+            {faceLabel}
+          </span>
+        )}
+        <span className="text-xs text-gray-400">{entries.length} athlete{entries.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      {/* Table — bottom corners stay square when the expand button is present */}
+      <div className={`overflow-x-auto border border-gray-200 ${needsCollapse ? 'rounded-t-lg' : 'rounded-lg'}`}>
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="px-3 py-2 text-center  text-xs font-semibold text-gray-500 w-8">#</th>
+              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500">Athlete</th>
+              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 w-16">Club</th>
+              <th className="px-3 py-2 text-right   text-xs font-semibold text-gray-500 w-20">Score</th>
+              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 w-24 hidden sm:table-cell">Date</th>
+              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 hidden md:table-cell">Competition</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-100">
+            {visible.map(({ rank, record }) => (
+              <tr
+                key={record._id ?? `${record.Athlete}-${record.Date}`}
+                className="hover:bg-blue-50/40 transition-colors"
+              >
+                <td className="px-3 py-2.5 text-center w-8">
+                  {rank <= 3 ? (
+                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${RANK_BADGE[rank]}`}>
+                      {rank}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs tabular-nums">{rank}</span>
+                  )}
+                </td>
+                <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-nowrap">
+                  {record.Athlete}
+                  {/* Show athlete's actual age class when appearing in a higher category */}
+                  {record['Age Class'] !== categoryAgeClass && (
+                    <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${AGE_COLOR[record['Age Class']]}`}>
+                      {record['Age Class']}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2.5 w-16">
+                  <Badge color="blue">{record.Club}</Badge>
+                </td>
+                <td className="px-3 py-2.5 text-right w-20">
+                  <span className="font-bold tabular-nums text-gray-900">
+                    {formatNumber(record.Result)}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap w-24 hidden sm:table-cell">
+                  {record.Date}
+                </td>
+                <td className="px-3 py-2.5 text-gray-500 hidden md:table-cell truncate max-w-xs">
+                  {record.Competition}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Expand / collapse button — sits flush under the table border */}
+      {needsCollapse && (
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="w-full py-1.5 text-xs font-medium text-blue-600 hover:text-blue-800
+            hover:bg-blue-50/60 border border-t-0 border-gray-200 rounded-b-lg transition-colors"
+        >
+          {expanded
+            ? '↑ Show top 8'
+            : `↓ Show all ${entries.length} results`}
+        </button>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 // ── CATEGORY SECTION ─────────────────────────────────────────────────────────
 
