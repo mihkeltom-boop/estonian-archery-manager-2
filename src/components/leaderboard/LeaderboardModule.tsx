@@ -201,23 +201,23 @@ const DistanceTable: React.FC<{
 
       {/* Table — bottom corners stay square when the expand button is present */}
       <div className={`overflow-x-auto border border-gray-200 ${needsCollapse ? 'rounded-t-lg' : 'rounded-lg'} print-plain-table`}>
-        <table className="min-w-full text-sm">
+        <table className="w-full table-fixed text-sm">
           <colgroup>
-            <col style={{ width: '2.25rem' }} />
+            <col className="w-9" />
             <col />
-            <col style={{ width: '4.5rem' }} />
-            <col style={{ width: '5rem' }} />
-            <col style={{ width: '6rem' }} />
-            <col />
+            <col className="w-[4.5rem]" />
+            <col className="w-20" />
+            <col className="w-24 hidden sm:table-column print:table-column" />
+            <col className="hidden md:table-column print:hidden-column" />
           </colgroup>
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="px-3 py-2 text-center  text-xs font-semibold text-gray-500 w-8">#</th>
-              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500">Athlete</th>
-              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 w-[4.5rem]">Club</th>
-              <th className="px-3 py-2 text-right   text-xs font-semibold text-gray-500 w-20">Score</th>
-              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 w-24 hidden sm:table-cell print:table-cell">Date</th>
-              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 hidden md:table-cell print:hidden">Competition</th>
+              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500">#</th>
+              <th className="px-3 py-2 text-left   text-xs font-semibold text-gray-500">Athlete</th>
+              <th className="px-3 py-2 text-left   text-xs font-semibold text-gray-500">Club</th>
+              <th className="px-3 py-2 text-right  text-xs font-semibold text-gray-500">Score</th>
+              <th className="px-3 py-2 text-left   text-xs font-semibold text-gray-500 hidden sm:table-cell print:table-cell">Date</th>
+              <th className="px-3 py-2 text-left   text-xs font-semibold text-gray-500 hidden md:table-cell print:hidden">Competition</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
@@ -228,7 +228,7 @@ const DistanceTable: React.FC<{
                   needsCollapse && !expanded && i >= COLLAPSE_LIMIT ? ' hidden print:table-row' : ''
                 }`}
               >
-                <td className="px-3 py-2.5 text-center w-8">
+                <td className="px-3 py-2.5 text-center">
                   {rank <= 3 ? (
                     <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold print-plain-rank ${RANK_BADGE[rank]}`}>
                       {rank}
@@ -237,7 +237,7 @@ const DistanceTable: React.FC<{
                     <span className="text-gray-400 text-xs tabular-nums">{rank}</span>
                   )}
                 </td>
-                <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-nowrap">
+                <td className="px-3 py-2.5 font-medium text-gray-900 truncate">
                   {record.Athlete}
                   {record['Age Class'] !== categoryAgeClass && (
                     <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold print:hidden ${AGE_COLOR[record['Age Class']]}`}>
@@ -245,19 +245,19 @@ const DistanceTable: React.FC<{
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2.5 w-[4.5rem]">
+                <td className="px-3 py-2.5">
                   <span className="print:hidden"><ClubBadge club={record.Club} /></span>
                   <span className="hidden print:inline">{record.Club}</span>
                 </td>
-                <td className="px-3 py-2.5 text-right w-20">
+                <td className="px-3 py-2.5 text-right">
                   <span className="font-bold tabular-nums text-gray-900">
                     {formatNumber(record.Result)}
                   </span>
                 </td>
-                <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap w-24 hidden sm:table-cell print:table-cell">
+                <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap hidden sm:table-cell print:table-cell">
                   {record.Date}
                 </td>
-                <td className="px-3 py-2.5 text-gray-500 hidden md:table-cell print:hidden truncate max-w-xs">
+                <td className="px-3 py-2.5 text-gray-500 hidden md:table-cell print:hidden truncate">
                   {record.Competition}
                 </td>
               </tr>
