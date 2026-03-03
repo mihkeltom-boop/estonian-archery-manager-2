@@ -287,14 +287,14 @@ const CategorySection: React.FC<{
 // Top cell = Adult category (the "column header"), sub-cells = other age classes.
 
 const BOW_GENDER_COLUMNS: Array<{ bowType: BowType; gender: Gender }> = [
-  { bowType: 'Recurve',  gender: 'Women' },
   { bowType: 'Recurve',  gender: 'Men'   },
-  { bowType: 'Compound', gender: 'Women' },
+  { bowType: 'Recurve',  gender: 'Women' },
   { bowType: 'Compound', gender: 'Men'   },
-  { bowType: 'Barebow',  gender: 'Women' },
+  { bowType: 'Compound', gender: 'Women' },
   { bowType: 'Barebow',  gender: 'Men'   },
-  { bowType: 'Longbow',  gender: 'Women' },
+  { bowType: 'Barebow',  gender: 'Women' },
   { bowType: 'Longbow',  gender: 'Men'   },
+  { bowType: 'Longbow',  gender: 'Women' },
 ];
 
 const GENDER_HEADER_COLOR: Record<Gender, string> = {
