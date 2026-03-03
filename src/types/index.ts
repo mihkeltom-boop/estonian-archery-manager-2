@@ -11,7 +11,7 @@ export interface Correction {
   field: string;
   original: string;
   corrected: string;
-  method: 'exact' | 'fuzzy' | 'translation' | 'extraction';
+  method: 'exact' | 'fuzzy' | 'translation' | 'extraction' | 'validation';
   confidence: number;
   timestamp: number;
 }
@@ -25,6 +25,7 @@ export interface CompetitionRecord {
   'Age Class': AgeClass;
   Gender: Gender;
   'Shooting Exercise': string;
+  'Target Face': string;
   Result: number;
   Competition: string;
   _sourceFile: string;

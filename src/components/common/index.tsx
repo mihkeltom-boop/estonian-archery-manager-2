@@ -9,10 +9,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: React.ReactNode;
 }
 
-export const Button: React.FC<ButtonProps> = ({
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   children, variant = 'primary', size = 'md',
   loading, icon, className = '', disabled, ...props
-}) => {
+}, ref) => {
   const variants = {
     primary:   'bg-blue-600 hover:bg-blue-700 text-white shadow-sm',
     secondary: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300',
@@ -26,6 +26,7 @@ export const Button: React.FC<ButtonProps> = ({
   };
   return (
     <button
+      ref={ref}
       disabled={disabled || loading}
       className={`inline-flex items-center font-medium rounded-lg transition-all
         disabled:opacity-40 disabled:cursor-not-allowed
@@ -43,7 +44,7 @@ export const Button: React.FC<ButtonProps> = ({
       {children}
     </button>
   );
-};
+});
 
 // ── BADGE ──────────────────────────────────────────────────────────────────
 
@@ -105,8 +106,15 @@ export const StatCard: React.FC<StatCardProps> = ({ label, value, emoji, color =
     orange: 'bg-orange-50',
     green:  'bg-green-50',
   };
+  const border = {
+    blue:   'border-l-blue-400',
+    purple: 'border-l-purple-400',
+    teal:   'border-l-teal-400',
+    orange: 'border-l-orange-400',
+    green:  'border-l-green-400',
+  };
   return (
-    <Card className="p-4">
+    <Card className={`p-4 border-l-4 ${border[color]} hover:shadow-md transition-shadow`}>
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 ${bg[color]} rounded-lg flex items-center justify-center text-xl shrink-0`}>
           {emoji}

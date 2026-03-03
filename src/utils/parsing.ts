@@ -1,6 +1,9 @@
 import type { BowType, AgeClass, Gender, Correction } from '../types';
 import { BOW_TRANSLATIONS, ESTONIAN_HEADERS } from '../constants/clubs';
+import { getTargetFace } from '../constants/targetFaces';
 import { getClubs } from './clubStore';
+import { capitalizeWords, formatDate } from './formatting';
+import { validateScore } from './scoreValidation';
 import Papa from 'papaparse';
 import type { CompetitionRecord } from '../types';
 
@@ -59,7 +62,7 @@ export const levenshtein = (a: string, b: string): number => {
 export interface ClubMatchResult {
   code: string;
   confidence: number;
-  method: 'exact-code' | 'exact-name' | 'fuzzy-stripped' | 'fuzzy-raw' | 'unknown';
+  method: 'exact-code' | 'exact-name' | 'short-code' | 'fuzzy-stripped' | 'fuzzy-raw' | 'unknown';
 }
 
 export const matchClub = (input: string): ClubMatchResult => {
@@ -72,6 +75,16 @@ export const matchClub = (input: string): ClubMatchResult => {
 
   const exactName = clubs.find(c => c.name.toLowerCase() === trimmed.toLowerCase());
   if (exactName) return { code: exactName.code, confidence: 100, method: 'exact-name' };
+
+  // Check for 2-4 letter club shortened codes (auto-accept if unique prefix match)
+  if (trimmed.length >= 2 && trimmed.length <= 4) {
+    const prefixMatches = clubs.filter(c =>
+      c.code.toLowerCase().startsWith(trimmed.toLowerCase())
+    );
+    if (prefixMatches.length === 1) {
+      return { code: prefixMatches[0].code, confidence: 95, method: 'short-code' };
+    }
+  }
 
   const strippedInput = stripNoiseTerms(trimmed);
   let best: typeof clubs[0] | null = null;
@@ -114,8 +127,13 @@ export const extractAgeClass = (ageField: string, classField: string): AgeClass 
   return (m ? m[0] : 'Adult') as AgeClass;
 };
 
-export const extractGender = (classField: string): Gender =>
-  /naised|women/i.test(classField) ? 'Women' : 'Men';
+export const extractGender = (genderField: string, classField: string): Gender => {
+  if (genderField) {
+    if (/naised|women|naine|female|^n$/i.test(genderField.trim())) return 'Women';
+    if (/mehed|men|mees|male|^m$/i.test(genderField.trim())) return 'Men';
+  }
+  return /naised|women/i.test(classField) ? 'Women' : 'Men';
+};
 
 export const normalizeDistance = (d: string): string => {
   if (!d) return '';
@@ -143,31 +161,68 @@ export const parseCSVText = (text: string, sourceFile = ''): Promise<Competition
       complete: ({ data }) => {
         resolve(data.map((rawRow, i) => {
           const row         = mapHeaders(rawRow);
-          const date        = sanitize(row['Date'] || '');
-          const athlete     = sanitize(row['Athlete'] || '');
+          const date        = formatDate(sanitize(row['Date'] || ''));
+          const athlete     = capitalizeWords(sanitize(row['Athlete'] || ''));
           const clubRaw     = sanitize(row['Club'] || '');
           const bowClass    = sanitize(row['Class'] || row['Bow Type'] || '');
+          const genderRaw   = sanitize(row['Gender'] || '');
           const ageRaw      = sanitize(row['AgeClass'] || row['Age Class'] || '');
           const distRaw     = sanitize(row['Distance'] || row['Shooting Exercise'] || '');
           const result      = parseInt(sanitize(row['Result'] || '0')) || 0;
           const competition = sanitize(row['Competition'] || '');
           const clubMatch   = matchClub(clubRaw);
           const bowType     = translateBowType(bowClass);
+          const distance    = normalizeDistance(distRaw);
           const ts          = Date.now();
           const corrections: Correction[] = [];
+
+          // Club matching corrections
           if (clubRaw && clubMatch.confidence < 100)
             corrections.push({ field: 'Club', original: clubRaw, corrected: clubMatch.code,
               method: 'fuzzy', confidence: clubMatch.confidence, timestamp: ts });
+
+          // Bow type translation corrections
           const rawBow = bowClass.split(/\s+/)[0];
           if (rawBow && rawBow.toLowerCase() !== bowType.toLowerCase())
             corrections.push({ field: 'Bow Type', original: rawBow, corrected: bowType,
               method: 'translation', confidence: 100, timestamp: ts });
+
+          // Score validation — only flag when result exceeds the maximum or is 0
+          const scoreValidation = validateScore(result, distance);
+          let needsReview = clubMatch.confidence < 90;
+
+          if (!scoreValidation.valid) {
+            corrections.push({
+              field: 'Result',
+              original: String(result),
+              corrected: scoreValidation.error || 'Invalid score',
+              method: 'validation',
+              confidence: 0,
+              timestamp: ts,
+            });
+            needsReview = true;
+          } else if (result === 0) {
+            corrections.push({
+              field: 'Result',
+              original: '0',
+              corrected: 'Score is 0',
+              method: 'validation',
+              confidence: 0,
+              timestamp: ts,
+            });
+            needsReview = true;
+          }
+
+          const ageClass = extractAgeClass(ageRaw, bowClass);
+          const gender   = extractGender(genderRaw, bowClass);
+
           return {
             _id: i + 1, Date: date, Athlete: athlete, Club: clubMatch.code,
-            'Bow Type': bowType, 'Age Class': extractAgeClass(ageRaw, bowClass),
-            Gender: extractGender(bowClass), 'Shooting Exercise': normalizeDistance(distRaw),
+            'Bow Type': bowType, 'Age Class': ageClass,
+            Gender: gender, 'Shooting Exercise': distance,
+            'Target Face': getTargetFace(bowType, ageClass, gender, distance),
             Result: result, Competition: competition, _sourceFile: sourceFile,
-            _corrections: corrections, _needsReview: clubMatch.confidence < 90,
+            _corrections: corrections, _needsReview: needsReview,
             _confidence: clubMatch.confidence, _originalData: rawRow,
           };
         }));

@@ -99,13 +99,20 @@ function applyFilters(records: CompetitionRecord[], f: FilterState): Competition
   if (f.bowType)     d = d.filter(r => r['Bow Type'] === f.bowType);
   if (f.ageClass)    d = d.filter(r => r['Age Class'] === f.ageClass);
   if (f.gender)      d = d.filter(r => r.Gender === f.gender);
-  if (f.distance)    d = d.filter(r => r['Shooting Exercise'] === f.distance);
+  if (f.distance) {
+    if (f.distance.includes('|')) {
+      const [exercise, face] = f.distance.split('|');
+      d = d.filter(r => r['Shooting Exercise'] === exercise && r['Target Face'] === face);
+    } else {
+      d = d.filter(r => r['Shooting Exercise'] === f.distance);
+    }
+  }
   if (f.sourceFile)  d = d.filter(r => r._sourceFile === f.sourceFile);
 
   if (f.seasonalBest) {
     const map = new Map<string, CompetitionRecord>();
     d.forEach(r => {
-      const key = `${r.Athlete}__${r['Bow Type']}`;
+      const key = `${r.Athlete}__${r['Bow Type']}__${r['Shooting Exercise']}`;
       if (!map.has(key) || r.Result > map.get(key)!.Result) map.set(key, r);
     });
     d = Array.from(map.values());
@@ -160,14 +167,26 @@ export function useDatabaseState(initial: CompetitionRecord[] = []) {
     [state.records]
   );
 
+  /** Unique field values sorted by descending frequency (most records first) */
+  const uniqueValuesByCount = useCallback((field: keyof CompetitionRecord): string[] => {
+    const counts = new Map<string, number>();
+    for (const r of state.records) {
+      const v = String(r[field] ?? '');
+      if (v) counts.set(v, (counts.get(v) || 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([v]) => v);
+  }, [state.records]);
+
   return {
     state,
     displayed,
+    allFiltered: sorted,
     filteredCount: filtered.length,
     hasMore: sorted.length > displayed.length,
     activeFilterCount,
     statistics,
     uniqueValues,
+    uniqueValuesByCount,
     setRecords:   (records: CompetitionRecord[]) => dispatch({ type: 'SET_RECORDS', payload: records }),
     updateRecord: (id: number, updates: Partial<CompetitionRecord>) => dispatch({ type: 'UPDATE_RECORD', payload: { id, updates } }),
     deleteRecord: (id: number) => dispatch({ type: 'DELETE_RECORD', payload: id }),

@@ -1,10 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CLUB STORE
 //
-// Single source of truth for the acceptable clubs list.
-// Ships with the 19 built-in Estonian clubs, but users can add their own.
-// Persisted to localStorage so additions survive page refreshes.
+// Runtime manager for the clubs list.
+// Built-in clubs come from constants/clubs.ts (single source of truth).
+// Users can add their own clubs, persisted to localStorage.
 // ─────────────────────────────────────────────────────────────────────────────
+
+import { ESTONIAN_CLUBS } from '../constants/clubs';
 
 export interface Club {
   code: string;
@@ -12,29 +14,9 @@ export interface Club {
   userAdded?: boolean;
 }
 
-const STORAGE_KEY = 'archery_clubs_v2';
+const STORAGE_KEY = 'archery_clubs_v3';
 
-const BUILT_IN_CLUBS: Club[] = [
-  { code: 'TLVK', name: 'Tallinna Laskurvibuklubi' },
-  { code: 'VVVK', name: 'Viljandi Vibukool' },
-  { code: 'SAG',  name: 'Tallinna SK' },
-  { code: 'TVSK', name: 'Tapa' },
-  { code: 'JVI',  name: 'Jõhvi' },
-  { code: 'PVM',  name: 'Põlva-Võru-Maardu' },
-  { code: 'KSK',  name: 'Keila SK' },
-  { code: 'SJK',  name: 'Sindi Jõuklubi' },
-  { code: 'STR',  name: 'Silla-Tare Rahvaspordiklubi' },
-  { code: 'MAG',  name: 'Margus' },
-  { code: 'TYRI', name: 'Türi SK' },
-  { code: 'BH',   name: 'BH Fitness' },
-  { code: 'KVK',  name: 'Kiili Vibukool' },
-  { code: 'LVL',  name: 'Laulasmaa VK' },
-  { code: 'VVK',  name: 'Valga Vibukool' },
-  { code: 'SVK',  name: 'Saku Vibukool' },
-  { code: 'TL',   name: 'Tiit Laasberg' },
-  { code: 'AMA',  name: 'Amatöör' },
-  { code: 'NS',   name: 'NS' },
-];
+const BUILT_IN_CLUBS: Club[] = ESTONIAN_CLUBS.map(c => ({ code: c.code, name: c.name }));
 
 // ── Internal state ────────────────────────────────────────────────────────────
 
