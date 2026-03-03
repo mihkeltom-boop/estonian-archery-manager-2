@@ -698,6 +698,15 @@ const TicketReview: React.FC<TicketReviewProps> = ({
           />
         </div>
       )}
+
+      {/* Manual continue — fallback when auto-transition doesn't fire */}
+      {remaining === 0 && (
+        <div className="text-center py-6">
+          <Button onClick={() => onFinalise(decisions)} size="lg">
+            Continue to Consistency Check →
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
