@@ -141,6 +141,8 @@ const DistanceTable: React.FC<{
   const [expanded, setExpanded] = useState(false);
   const needsCollapse = entries.length > COLLAPSE_LIMIT;
   const visible = needsCollapse && !expanded ? entries.slice(0, COLLAPSE_LIMIT) : entries;
+  // Show targetFace from config (indoor) or the auto-detected faceLabel (outdoor multi-face)
+  const displayFace = faceLabel ?? dist.targetFace;
 
   return (
     <div className="mb-6">
@@ -149,9 +151,9 @@ const DistanceTable: React.FC<{
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
           {dist.label}
         </span>
-        {faceLabel && (
+        {displayFace && (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-            {faceLabel}
+            {displayFace}
           </span>
         )}
         <span className="text-xs text-gray-400">{entries.length} athlete{entries.length !== 1 ? 's' : ''}</span>
