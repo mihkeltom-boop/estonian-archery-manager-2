@@ -14,28 +14,18 @@ interface RankedEntry {
 
 // ── AGE CLASS INCLUSION RULES ────────────────────────────────────────────────
 //
-// Age classes work as handicap groups: a result from a younger/older class
-// counts upward through the age ladder.
-//
-// Youth (U = under age limit):
-//   U13 → eligible for U15, U18, U21, Adult
-//   U15 → eligible for U18, U21, Adult
-//   U18 → eligible for U21, Adult
-//   U21 → eligible for Adult
-//
-// Veterans (+ = age 50 and above):
-//   +70 → eligible for +60, +50, Adult
-//   +60 → eligible for +50, Adult
-//   +50 → eligible for Adult
+// Each leaderboard section shows only results from athletes registered in that
+// exact age class. The target-face split then handles cases where the same
+// age class competes on different face sizes.
 
 const AGE_CLASS_INCLUDES: Record<AgeClass, AgeClass[]> = {
-  'Adult': ['Adult', 'U21', 'U18', 'U15', 'U13', '+50', '+60', '+70'],
-  'U21':   ['U21',  'U18', 'U15', 'U13'],
-  'U18':   ['U18',  'U15', 'U13'],
-  'U15':   ['U15',  'U13'],
+  'Adult': ['Adult'],
+  'U21':   ['U21'],
+  'U18':   ['U18'],
+  'U15':   ['U15'],
   'U13':   ['U13'],
-  '+50':   ['+50',  '+60', '+70'],
-  '+60':   ['+60',  '+70'],
+  '+50':   ['+50'],
+  '+60':   ['+60'],
   '+70':   ['+70'],
 };
 
