@@ -19,8 +19,104 @@ body {
 
 /* ── PRINT / PDF EXPORT ────────────────────────────────────────────────────── */
 @media print {
-  /* Repeat table headers on each page */
+  /* --- Page setup --- */
+  @page { margin: 12mm 10mm; size: A4; }
+  body { font-size: 10pt !important; line-height: 1.3 !important; color: #000 !important; }
+
+  /* --- 2-column layout for category content --- */
+  .print-columns { columns: 2 !important; column-gap: 14pt !important; }
+
+  /* --- Table basics --- */
   thead { display: table-header-group; }
-  /* Prevent rows from splitting across pages */
   tr    { break-inside: avoid; }
+
+  /* Keep each distance table + its heading together */
+  .print-avoid-break { break-inside: avoid; }
+
+  /* Keep category heading attached to first table */
+  .print-keep-heading { break-after: avoid; }
+
+  /* --- Strip all decorative styling --- */
+  /* Remove backgrounds, shadows, borders, rounded corners */
+  .print-plain-table {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .print-plain-table table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .print-plain-table th {
+    background: none !important;
+    border-bottom: 1.5pt solid #000 !important;
+    padding: 1pt 4pt !important;
+    font-size: 8pt !important;
+    font-weight: 600 !important;
+    color: #000 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3pt !important;
+  }
+  .print-plain-table td {
+    padding: 1.5pt 4pt !important;
+    font-size: 10pt !important;
+    border-bottom: 0.5pt solid #ccc !important;
+    background: none !important;
+    color: #000 !important;
+  }
+  .print-plain-table tr:hover { background: none !important; }
+  .print-plain-table tbody tr:last-child td { border-bottom: 1pt solid #000 !important; }
+
+  /* Hide all badge decorations — show only their text content as plain text */
+  .print-plain-table .print-hide-badge {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    font-weight: normal !important;
+    color: #000 !important;
+    font-size: 10pt !important;
+  }
+
+  /* Rank badges → plain numbers */
+  .print-plain-rank {
+    background: none !important;
+    border-radius: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    font-size: 10pt !important;
+    font-weight: normal !important;
+    color: #000 !important;
+  }
+
+  /* Distance/face pills → plain bold text */
+  .print-plain-pill {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    font-weight: 700 !important;
+    color: #000 !important;
+    font-size: 10pt !important;
+  }
+
+  /* Category section heading — compact */
+  .print-cat-heading {
+    border-bottom: 1.5pt solid #000 !important;
+    padding-bottom: 2pt !important;
+    margin-bottom: 4pt !important;
+  }
+  .print-cat-heading h2 {
+    font-size: 11pt !important;
+    margin: 0 !important;
+  }
+
+  /* Distance table group — compact spacing */
+  .print-dist-group {
+    margin-bottom: 6pt !important;
+  }
+  .print-dist-header {
+    margin-bottom: 1pt !important;
+  }
 }

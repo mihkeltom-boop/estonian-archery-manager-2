@@ -181,27 +181,26 @@ const DistanceTable: React.FC<{
 }> = ({ dist, entries, categoryAgeClass, faceLabel }) => {
   const [expanded, setExpanded] = useState(false);
   const needsCollapse = entries.length > COLLAPSE_LIMIT;
-  const visible = needsCollapse && !expanded ? entries.slice(0, COLLAPSE_LIMIT) : entries;
   // Show targetFace from config (indoor) or the auto-detected faceLabel (outdoor multi-face)
   const displayFace = faceLabel ?? dist.targetFace;
 
   return (
-    <div className="mb-6">
+    <div className="mb-6 print-dist-group print-avoid-break">
       {/* Distance + face pills */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+      <div className="flex items-center gap-2 mb-2 print-dist-header">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200 print-plain-pill">
           {dist.label}
         </span>
         {displayFace && (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 print-plain-pill">
             {displayFace}
           </span>
         )}
-        <span className="text-xs text-gray-400">{entries.length} athlete{entries.length !== 1 ? 's' : ''}</span>
+        <span className="text-xs text-gray-400 print:hidden">{entries.length} athlete{entries.length !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Table — bottom corners stay square when the expand button is present */}
-      <div className={`overflow-x-auto border border-gray-200 ${needsCollapse ? 'rounded-t-lg' : 'rounded-lg'}`}>
+      <div className={`overflow-x-auto border border-gray-200 ${needsCollapse ? 'rounded-t-lg' : 'rounded-lg'} print-plain-table`}>
         <table className="min-w-full text-sm">
           <colgroup>
             <col style={{ width: '2.25rem' }} />
@@ -217,19 +216,21 @@ const DistanceTable: React.FC<{
               <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500">Athlete</th>
               <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 w-[4.5rem]">Club</th>
               <th className="px-3 py-2 text-right   text-xs font-semibold text-gray-500 w-20">Score</th>
-              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 w-24 hidden sm:table-cell">Date</th>
-              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 hidden md:table-cell">Competition</th>
+              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 w-24 hidden sm:table-cell print:table-cell">Date</th>
+              <th className="px-3 py-2 text-left    text-xs font-semibold text-gray-500 hidden md:table-cell print:hidden">Competition</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
-            {visible.map(({ rank, record }) => (
+            {entries.map(({ rank, record }, i) => (
               <tr
                 key={record._id ?? `${record.Athlete}-${record.Date}`}
-                className="hover:bg-blue-50/40 transition-colors"
+                className={`hover:bg-blue-50/40 transition-colors${
+                  needsCollapse && !expanded && i >= COLLAPSE_LIMIT ? ' hidden print:table-row' : ''
+                }`}
               >
                 <td className="px-3 py-2.5 text-center w-8">
                   {rank <= 3 ? (
-                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${RANK_BADGE[rank]}`}>
+                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold print-plain-rank ${RANK_BADGE[rank]}`}>
                       {rank}
                     </span>
                   ) : (
@@ -238,25 +239,25 @@ const DistanceTable: React.FC<{
                 </td>
                 <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-nowrap">
                   {record.Athlete}
-                  {/* Show athlete's actual age class when appearing in a higher category */}
                   {record['Age Class'] !== categoryAgeClass && (
-                    <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${AGE_COLOR[record['Age Class']]}`}>
+                    <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold print:hidden ${AGE_COLOR[record['Age Class']]}`}>
                       {record['Age Class']}
                     </span>
                   )}
                 </td>
                 <td className="px-3 py-2.5 w-[4.5rem]">
-                  <ClubBadge club={record.Club} />
+                  <span className="print:hidden"><ClubBadge club={record.Club} /></span>
+                  <span className="hidden print:inline">{record.Club}</span>
                 </td>
                 <td className="px-3 py-2.5 text-right w-20">
                   <span className="font-bold tabular-nums text-gray-900">
                     {formatNumber(record.Result)}
                   </span>
                 </td>
-                <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap w-24 hidden sm:table-cell">
+                <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap w-24 hidden sm:table-cell print:table-cell">
                   {record.Date}
                 </td>
-                <td className="px-3 py-2.5 text-gray-500 hidden md:table-cell truncate max-w-xs">
+                <td className="px-3 py-2.5 text-gray-500 hidden md:table-cell print:hidden truncate max-w-xs">
                   {record.Competition}
                 </td>
               </tr>
@@ -265,12 +266,12 @@ const DistanceTable: React.FC<{
         </table>
       </div>
 
-      {/* Expand / collapse button — sits flush under the table border */}
+      {/* Expand / collapse button — hidden in print */}
       {needsCollapse && (
         <button
           onClick={() => setExpanded(e => !e)}
           className="w-full py-1.5 text-xs font-medium text-blue-600 hover:text-blue-800
-            hover:bg-blue-50/60 border border-t-0 border-gray-200 rounded-b-lg transition-colors"
+            hover:bg-blue-50/60 border border-t-0 border-gray-200 rounded-b-lg transition-colors print:hidden"
         >
           {expanded
             ? '↑ Show top 8'
@@ -342,16 +343,15 @@ const CategorySection: React.FC<{
   const isAdult = cat.ageClass === 'Adult';
 
   return (
-    // Adult sections get a page-break in print so each bow×gender group starts on a new page
-    <section id={id} className={`mb-10 scroll-mt-20 ${isAdult ? 'print:break-before-page' : ''}`}>
-      <div className="flex items-center gap-3 mb-4 pb-2 border-b-2 border-gray-200">
-        <span className="text-2xl" aria-hidden="true">{BOW_ICON[cat.bowType]}</span>
+    <section id={id} className={`mb-10 scroll-mt-20 print-avoid-break ${isAdult ? 'print:break-before-page' : ''}`}>
+      <div className="flex items-center gap-3 mb-4 pb-2 border-b-2 border-gray-200 print-cat-heading print-keep-heading">
+        <span className="text-2xl print:hidden" aria-hidden="true">{BOW_ICON[cat.bowType]}</span>
         <div>
           <h2 className="text-lg font-bold text-gray-900">
             {cat.bowType}{!isAdult ? ` · ${cat.ageClass}` : ''} · {cat.gender}
           </h2>
           {!isAdult && (
-            <span className={`inline-block mt-0.5 px-2 py-0.5 rounded text-xs font-semibold ${AGE_COLOR[cat.ageClass]}`}>
+            <span className={`inline-block mt-0.5 px-2 py-0.5 rounded text-xs font-semibold print:hidden ${AGE_COLOR[cat.ageClass]}`}>
               {cat.ageClass}
             </span>
           )}
@@ -425,7 +425,7 @@ const QuickJump: React.FC<{
   if (columns.length === 0) return null;
 
   return (
-    <div className="mb-8">
+    <div className="mb-8 print:hidden">
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
         Jump to category
       </p>
@@ -529,9 +529,9 @@ const LeaderboardModule: React.FC<{ records: CompetitionRecord[] }> = ({ records
   return (
     <div className="fade-in">
       {/* Print-only document title (hidden on screen) */}
-      <div className="hidden print:block mb-6 pb-4 border-b-2 border-gray-300">
-        <h1 className="text-2xl font-bold text-gray-900">Estonian Archery Leaderboard {selectedYear}</h1>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className="hidden print:block print:mb-2 print:pb-1 print:border-b print:border-black">
+        <h1 className="print:text-sm print:font-bold">Estonian Archery Leaderboard {selectedYear}</h1>
+        <p className="print:text-[8pt] print:text-gray-600 print:mt-0">
           Seasonal best results per athlete · {new Date().toLocaleDateString('et-EE')}
         </p>
       </div>
@@ -573,14 +573,16 @@ const LeaderboardModule: React.FC<{ records: CompetitionRecord[] }> = ({ records
         <>
           <QuickJump categories={LEADERBOARD_LAYOUT} records={records} year={selectedYear} />
 
-          {LEADERBOARD_LAYOUT.map(cat => (
-            <CategorySection
-              key={categoryId(cat)}
-              cat={cat}
-              records={records}
-              year={selectedYear}
-            />
-          ))}
+          <div className="print-columns">
+            {LEADERBOARD_LAYOUT.map(cat => (
+              <CategorySection
+                key={categoryId(cat)}
+                cat={cat}
+                records={records}
+                year={selectedYear}
+              />
+            ))}
+          </div>
         </>
       )}
     </div>
